@@ -34,10 +34,7 @@ struct path {
     return !operator== (rhs);
   }
 
-  // Remove dot segments from the string.
-  //
-  // See also Section 5.2.4 of RFC 3986.
-  // http://tools.ietf.org/html/rfc3986#section-5.2.4
+  // Remove dot segments from the path.
   void remove_dot_segments ();
   [[nodiscard]] constexpr bool empty () const noexcept {
     return !absolute && segments.empty ();
@@ -83,11 +80,6 @@ std::optional<parts> split (std::string_view in);
 parts join (parts const& base, parts const& reference, bool strict = true);
 std::optional<parts> join (std::string_view Base, std::string_view R,
                            bool strict = true);
-
-std::string percent_decode (std::string_view src);
-
-void normalize (parts& p);
-void normalize (std::optional<parts>& p);
 
 std::string compose (parts const& p);
 std::ostream& compose (std::ostream& os, parts const& p);

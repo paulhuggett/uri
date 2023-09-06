@@ -409,7 +409,7 @@ public:
       : result_{result} {}
   void operator() (std::string_view const seg) {
     assert (!result_.path.segments.empty ());
-    result_.path.segments.back () += seg;
+    result_.path.segments.back () = seg;
   }
 
 private:
@@ -732,75 +732,6 @@ std::optional<parts> split (std::string_view const in) {
     return result;
   }
   return {};
-}
-
-std::string percent_decode (std::string_view src) {
-  auto const is_hex = [] (char const c) {
-    return static_cast<bool> (std::isxdigit (static_cast<int> (c)));
-  };
-  auto const hex2dec = [] (char const digit) {
-    if (digit >= 'a' && digit <= 'f') {
-      return static_cast<unsigned> (digit) - ('a' - 10);
-    }
-    if (digit >= 'A' && digit <= 'F') {
-      return static_cast<unsigned> (digit) - ('A' - 10);
-    }
-    return static_cast<unsigned> (digit) - '0';
-  };
-
-  std::string result;
-  result.reserve (src.length ());
-  // NOLINTNEXTLINE(llvm-qualified-auto,readability-qualified-auto)
-  auto pos = src.begin ();
-  // NOLINTNEXTLINE(llvm-qualified-auto,readability-qualified-auto)
-  auto const end = src.end ();
-  while (pos != end) {
-    if (*pos == '%' && std::distance (pos, end) >= 3 && is_hex (*(pos + 1)) &&
-        is_hex (*(pos + 2))) {
-      result +=
-        static_cast<char> ((hex2dec (*(pos + 1)) << 4) | hex2dec (*(pos + 2)));
-      pos += 3;
-    } else {
-      result += *pos;
-      ++pos;
-    }
-  }
-  return result;
-}
-
-void normalize (parts& p) {
-  auto const lowercase = [] (std::string& s) {
-    std::transform (std::begin (s), std::end (s), std::begin (s), [] (char c) {
-      return static_cast<char> (std::tolower (static_cast<int> (c)));
-    });
-  };
-
-  if (p.scheme) {
-    lowercase (*p.scheme);
-  }
-  if (p.authority.userinfo) {
-    p.authority.userinfo = percent_decode (*p.authority.userinfo);
-  }
-  if (p.authority.host) {
-    lowercase (*p.authority.host);
-    p.authority.host = percent_decode (*p.authority.host);
-  }
-  p.path.remove_dot_segments ();
-  for (auto& segment : p.path.segments) {
-    segment = percent_decode (segment);
-  }
-  if (p.query) {
-    p.query = percent_decode (*p.query);
-  }
-  if (p.fragment) {
-    p.fragment = percent_decode (*p.fragment);
-  }
-}
-
-void normalize (std::optional<parts>& p) {
-  if (p) {
-    normalize (*p);
-  }
 }
 
 std::ostream& operator<< (std::ostream& os, authority const& auth) {
