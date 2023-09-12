@@ -15,7 +15,7 @@
 #===----------------------------------------------------------------------===//
 cmake_minimum_required (VERSION 3.13)
 project (uri CXX)
-set (STANDARD 17)
+set (STANDARD 20)
 
 include (CheckCXXCompilerFlag)
 

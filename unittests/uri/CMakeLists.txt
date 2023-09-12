@@ -13,7 +13,11 @@
 # SPDX-License-Identifier: MIT
 #
 #===----------------------------------------------------------------------===//
-add_executable (unittest test_uri.cpp test_rule.cpp)
+add_executable (unittest
+  test_pct_decode.cpp
+  test_rule.cpp
+  test_uri.cpp
+)
 target_link_libraries (unittest uri gmock_main)
 setup_target (unittest)
 set (clang_options -Wno-global-constructors -Wno-used-but-marked-unused)

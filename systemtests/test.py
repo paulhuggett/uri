@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# ===- test.py ------------------------------------------------------------===//
+# ===- systemtests/test.py ------------------------------------------------===//
 # *  _            _    *
 # * | |_ ___  ___| |_  *
 # * | __/ _ \/ __| __| *
@@ -39,7 +39,10 @@ def parse_file (path):
             
 def main (args):
   parser = argparse.ArgumentParser (description='URI parser wrapper')
-  parser.add_argument('infile', help='The name of a file containing URI text')
+  #parser.add_argument('infile', help='The name of a file containing URI text')
+  parser.add_argument('binary', help='The path of the binary to be tested')
+  parser.add_argument('tests', help='The path of the directory containing test inputs')
+
   options = parser.parse_args(args)
   parse_file (options.infile)
   

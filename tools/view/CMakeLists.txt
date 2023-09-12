@@ -1,4 +1,4 @@
-#===- lib/uri/CMakeLists.txt ----------------------------------------------===//
+#===- tools/view/CMakeLists.txt -------------------------------------------===//
 #*   ____ __  __       _        _     _     _        *
 #*  / ___|  \/  | __ _| | _____| |   (_)___| |_ ___  *
 #* | |   | |\/| |/ _` | |/ / _ \ |   | / __| __/ __| *
@@ -13,15 +13,5 @@
 # SPDX-License-Identifier: MIT
 #
 #===----------------------------------------------------------------------===//
-set (include_dir "${URI_ROOT}/include")
-add_library (uri STATIC
-    "${include_dir}/uri/pct_decode.hpp"
-    "${include_dir}/uri/rule.hpp"
-    "${include_dir}/uri/uri.hpp"
-    rule.cpp
-    uri.cpp
-)
-setup_target (uri)
-target_include_directories (
-  uri PUBLIC $<BUILD_INTERFACE:${include_dir}> $<INSTALL_INTERFACE:uri>
-)
+add_executable (view view.cpp)
+setup_target (view)
