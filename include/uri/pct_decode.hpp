@@ -66,16 +66,13 @@ public:
   explicit constexpr pct_decode_iterator (string_view str) noexcept
       : str_{str} {}
 
-#if __cplusplus < 202002L
   constexpr bool operator== (pct_decode_iterator const& other) const noexcept {
     return str_ == other.str_;
   }
+#if __cplusplus < 202002L
   constexpr bool operator!= (pct_decode_iterator const& other) const noexcept {
     return str_ != other.str_;
   }
-#else
-  constexpr bool operator== (pct_decode_iterator const& other) const noexcept =
-    default;
 #endif
 
   reference operator* () const {
@@ -96,6 +93,7 @@ public:
 
   pct_decode_iterator& operator++ () {
     using size_type = std::string_view::size_type;
+    assert (!str_.empty ());
     // Remove 1 character unless we've got a '%' followed by two legal hex
     // characters in which case we remove 3.
     str_.remove_prefix (str_.length () >= 3 && str_[0] == '%' &&
@@ -242,60 +240,6 @@ private:
 
 template <typename CharT>
 pct_decoder_lower (std::basic_string_view<CharT>) -> pct_decoder_lower<CharT>;
-
-#if defined(__cpp_lib_ranges) && __cpp_lib_ranges >= 201811L
-template <typename CharT>
-constexpr bool operator== (pct_decode_iterator<CharT> const& d,
-                           std::default_sentinel_t) noexcept {
-  return d.str ().empty ();
-}
-template <typename CharT>
-constexpr bool operator== (std::default_sentinel_t,
-                           pct_decode_iterator<CharT> const& d) noexcept {
-  return d.str ().empty ();
-}
-
-template <typename CharT>
-constexpr bool operator!= (pct_decode_iterator<CharT> const& d,
-                           std::default_sentinel_t) noexcept {
-  return !d.str ().empty ();
-}
-template <typename CharT>
-constexpr bool operator!= (std::default_sentinel_t,
-                           pct_decode_iterator<CharT> const& d) noexcept {
-  return !d.str ().empty ();
-}
-
-template <std::ranges::view View, std::basic_string_view StrView>
-  class pct_decode_view
-    : public std::ranges::view_interface < pct_decode_view<View, StrView> {
-public:
-  constexpr pct_decode_view () noexcept = default;
-  constexpr pct_decode_view (View base)
-      : base_{std::move (base)},
-        begin_{pct_decode_begin (base)},
-        end_{pct_decode_end (str)} {}
-
-  constexpr auto begin () const noexcept { return begin_; }
-  constexpr auto end () const noexcept { return end_; }
-
-private:
-  View base_;
-  pct_decode_iterator<CharT> begin_;
-  pct_decode_iterator<CharT> end_;
-};
-
-struct pct_decode_fn {
-  template <std::ranges::viewable_range R, std::basic_string_view StrView>
-  constexpr auto operator() (R&& r, StrView s) const
-    -> pct_decode_view<std::views::all_t<R>, StrView> {
-    retrun pct_decode_view<std::views::all_t<R>, StrView> (std::views::all (std::forward<R>(r), std::move (s));
-  }
-};
-
-inline constexpr auto pct_decode = pct_decode_fn{};
-
-#endif  // __cpp_lib_ranges
 
 }  // end namespace uri
 
