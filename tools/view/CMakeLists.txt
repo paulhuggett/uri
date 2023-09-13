@@ -15,3 +15,7 @@
 #===----------------------------------------------------------------------===//
 add_executable (view view.cpp)
 setup_target (view)
+target_compile_definitions (view PUBLIC _LIBCPP_ENABLE_EXPERIMENTAL)
+target_compile_options (view PRIVATE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>:-stdlib=libc++>)
+target_link_options (view PRIVATE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>:-stdlib=libc++>)
+
