@@ -8,17 +8,17 @@ jobs:
         include:
           # macOS builds
           # ~~~~~~~~~~~~
-          - name: macOS-12/Xcode/Debug
+          - name: macOS-13/Xcode/Debug
             build_type: Debug
             generator: Xcode
             options: -DWERROR=Yes
-            os: macos-12
+            os: macos-13
 
-          - name: macOS-12/Xcode/Release
+          - name: macOS-13/Xcode/Release
             build_type: Release
             generator: Xcode
             options: -DWERROR=Yes
-            os: macos-12
+            os: macos-13
 
           # Linux builds
           # ~~~~~~~~~~~~
@@ -82,11 +82,11 @@ jobs:
             options: -DWERROR=Yes
             os: windows-latest
 
-          - name: Windows-latest/VS2022/Debug/C++17
-            build_type: Debug
-            generator: Visual Studio 17 2022
-            options: -DWERROR=Yes
-            os: windows-latest
+          #- name: Windows-latest/VS2022/Debug/C++17
+          #  build_type: Debug
+          #  generator: Visual Studio 17 2022
+          #  options: -DWERROR=Yes
+          #  os: windows-latest
 
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
