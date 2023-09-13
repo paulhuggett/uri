@@ -44,29 +44,29 @@ jobs:
             options: -DWERROR=Yes
             os: ubuntu-22.04
 
-          - name: Ubuntu-22.04/clang-14/Debug
-            apt_install: clang-14 cmake libc++-dev libc++abi-dev ninja-build
+          - name: Ubuntu-22.04/clang-15/Debug
+            apt_install: clang-15 cmake libc++-15-dev libc++abi-15-dev ninja-build
             build_type: Debug
-            cxx_compiler: -DCMAKE_CXX_COMPILER=clang++-14 -DCMAKE_C_COMPILER=clang-14
+            cxx_compiler: -DCMAKE_CXX_COMPILER=clang++-15 -DCMAKE_C_COMPILER=clang-15
             generator: Ninja
             options: -DWERROR=Yes
             os: ubuntu-22.04
 
-          - name: Ubuntu-22.04/clang-14/Release
-            apt_install: clang-14 cmake libc++-dev libc++abi-dev ninja-build
+          - name: Ubuntu-22.04/clang-15/Release
+            apt_install: clang-15 cmake libc++-15-dev libc++abi-15-dev ninja-build
             build_type: Release
-            cxx_compiler: -DCMAKE_CXX_COMPILER=clang++-14 -DCMAKE_C_COMPILER=clang-14
+            cxx_compiler: -DCMAKE_CXX_COMPILER=clang++-15 -DCMAKE_C_COMPILER=clang-15
             generator: Ninja
             options: -DWERROR=Yes
             os: ubuntu-22.04
 
-          - name: Ubuntu-22.04/clang-14/Release/C++17
-            apt_install: clang-14 cmake ninja-build
-            build_type: Release
-            cxx_compiler: -DCMAKE_CXX_COMPILER=clang++-14 -DCMAKE_C_COMPILER=clang-14
-            generator: Ninja
-            options: -DWERROR=Yes
-            os: ubuntu-22.04
+          #- name: Ubuntu-22.04/clang-15/Release/C++17
+          #  apt_install: clang-15 cmake ninja-build
+          #  build_type: Release
+          #  cxx_compiler: -DCMAKE_CXX_COMPILER=clang++-15 -DCMAKE_C_COMPILER=clang-15
+          #  generator: Ninja
+          #  options: -DWERROR=Yes
+          #  os: ubuntu-22.04
 
           # Windows builds
           # ~~~~~~~~~~~~~~
