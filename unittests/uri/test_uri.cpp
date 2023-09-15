@@ -1473,51 +1473,6 @@ TEST (UriFileSystemPath, RelativeTwoSegmentsDirectory) {
              std::filesystem::path ("foo/bar/"));
 }
 
-#if 0
-// NOLINTNEXTLINE
-TEST (UriPercentDecode, None) {
-  EXPECT_EQ (uri::percent_decode ("abcdef"), "abcdef");
-}
-// NOLINTNEXTLINE
-TEST (UriPercentDecode, TwoEncodedCharacters) {
-  EXPECT_EQ (uri::percent_decode ("a%62%63def"), "abcdef");
-}
-// NOLINTNEXTLINE
-TEST (UriPercentDecode, LowerHex) {
-  EXPECT_EQ (uri::percent_decode ("a%7ad"), "azd");
-}
-// NOLINTNEXTLINE
-TEST (UriPercentDecode, UpperHex) {
-  EXPECT_EQ (uri::percent_decode ("a%7Ad"), "azd");
-}
-// NOLINTNEXTLINE
-TEST (UriPercentDecode, LonelyPercent) {
-  EXPECT_EQ (uri::percent_decode ("ab%"), "ab%");
-}
-// NOLINTNEXTLINE
-TEST (UriPercentDecode, PercentThenNonHexCharacters) {
-  EXPECT_EQ (uri::percent_decode ("ab%zz"), "ab%zz");
-}
-
-// NOLINTNEXTLINE
-TEST (UriNormalize, SchemeAndHostCase) {
-  auto x =
-    uri::split ("HTTP://User@www.EXAMPLE.com/../Path%2fA?Q%75ery#%46ragment");
-  ASSERT_TRUE (x);
-  uri::normalize (*x);
-
-  EXPECT_EQ (x->scheme, "http");           // Lower-case.
-  EXPECT_EQ (x->authority.userinfo, "User");         // Mixed-case.
-  EXPECT_EQ (x->authority.host, "www.example.com");  // lower-case
-  EXPECT_FALSE (x->authority.port);
-  EXPECT_TRUE (x->path.absolute);
-  EXPECT_THAT (x->path.segments,
-               ElementsAre ("Path/A"));   // No dot-segments, Mixed-case.
-  EXPECT_EQ (x->query, "Query");          // Mixed-case
-  EXPECT_EQ (x->fragment, "Fragment");    // Mixed-case.
-}
-#endif
-
 class Join : public testing::Test {
 protected:
   static constexpr std::string_view base_ = "http://a/b/c/d;p?q";
