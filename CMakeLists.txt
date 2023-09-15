@@ -15,7 +15,15 @@
 #===----------------------------------------------------------------------===//
 cmake_minimum_required (VERSION 3.13)
 project (uri CXX)
+
+option (URI_WERROR "Compiler warnings are errors")
+option (URI_CXX17 "Use C++17 (rather than C++20)" No)
+
+if (URI_CXX17)
+set (STANDARD 17)
+else
 set (STANDARD 20)
+endif ()
 
 include (CheckCXXCompilerFlag)
 
@@ -65,7 +73,7 @@ function (setup_target target)
     endif ()
   endif ()
 
-  if (WERROR)
+  if (URI_WERROR)
     list (APPEND clang_options -Werror)
     list (APPEND gcc_options -Werror)
     list (APPEND msvc_options /WX)
@@ -100,11 +108,6 @@ function (setup_target target)
     $<$<CXX_COMPILER_ID:GNU>:${gcc_options}>
     $<$<CXX_COMPILER_ID:MSVC>:>
   )
-
-  # FIXME: these are hacked in until the C++20 views helpers are conditionally defined.
-  target_compile_definitions (${target} PUBLIC _LIBCPP_ENABLE_EXPERIMENTAL)
-  target_compile_options (${target} PRIVATE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>:-stdlib=libc++>)
-  target_link_options (${target} PRIVATE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>:-stdlib=libc++>)
 
 endfunction (setup_target)
 
