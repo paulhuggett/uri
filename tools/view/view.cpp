@@ -16,7 +16,7 @@
 #include <iostream>
 #include <vector>
 
-#include "uri/pct_decode.hpp"
+#include "uri/pctdecode.hpp"
 
 int main () {
   std::vector<char> n{'H', 'e', 'l', 'l', 'o', '%', '2',
@@ -29,7 +29,7 @@ int main () {
   auto v = n | uri::views::pctdecode | std::views::transform (lower);
   std::ranges::copy (v, out);
 #else
-  auto decoder = uri::pct_decoder{n};
+  auto decoder = uri::pctdecoder{n};
   std::transform (decoder.begin (), decoder.end (), out, lower);
 #endif
   std::cout << '\n';

@@ -14,7 +14,7 @@
 #
 #===----------------------------------------------------------------------===//
 add_executable (unittest
-  test_pct_decode.cpp
+  test_pctdecode.cpp
   test_rule.cpp
   test_uri.cpp
 )

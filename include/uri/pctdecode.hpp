@@ -1,10 +1,10 @@
-//===- include/uri/pct_decode.hpp -------------------------*- mode: C++ -*-===//
-//*             _         _                    _       *
-//*  _ __   ___| |_    __| | ___  ___ ___   __| | ___  *
-//* | '_ \ / __| __|  / _` |/ _ \/ __/ _ \ / _` |/ _ \ *
-//* | |_) | (__| |_  | (_| |  __/ (_| (_) | (_| |  __/ *
-//* | .__/ \___|\__|  \__,_|\___|\___\___/ \__,_|\___| *
-//* |_|                                                *
+//===- include/uri/pctdecode.hpp --------------------------*- mode: C++ -*-===//
+//*             _      _                    _       *
+//*  _ __   ___| |_ __| | ___  ___ ___   __| | ___  *
+//* | '_ \ / __| __/ _` |/ _ \/ __/ _ \ / _` |/ _ \ *
+//* | |_) | (__| || (_| |  __/ (_| (_) | (_| |  __/ *
+//* | .__/ \___|\__\__,_|\___|\___\___/ \__,_|\___| *
+//* |_|                                             *
 //===----------------------------------------------------------------------===//
 //
 // Distributed under the MIT License.
@@ -13,8 +13,8 @@
 // SPDX-License-Identifier: MIT
 //
 //===----------------------------------------------------------------------===//
-#ifndef URI_PCT_DECODE_HPP
-#define URI_PCT_DECODE_HPP
+#ifndef URI_PCTDECODE_HPP
+#define URI_PCTDECODE_HPP
 
 #include <algorithm>
 #include <cassert>
@@ -362,4 +362,4 @@ pctdecoder (Container) -> pctdecoder<typename Container::const_iterator>;
 
 }  // end namespace uri
 
-#endif  // URI_PCT_DECODE_HPP
+#endif  // URI_PCTDECODE_HPP
