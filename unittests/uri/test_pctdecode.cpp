@@ -26,7 +26,7 @@ class UriPctDecode : public testing::TestWithParam<
 
 // NOLINTNEXTLINE
 TEST_P (UriPctDecode, RawIterator) {
-  auto const [input, expected] = GetParam ();
+  auto const& [input, expected] = GetParam ();
   std::string out;
   std::copy (uri::pctdecode_begin (input), uri::pctdecode_end (input),
              std::back_inserter (out));
@@ -34,7 +34,7 @@ TEST_P (UriPctDecode, RawIterator) {
 }
 // NOLINTNEXTLINE
 TEST_P (UriPctDecode, RangeBasedForLoop) {
-  auto const [input, expected] = GetParam ();
+  auto const& [input, expected] = GetParam ();
   std::string out;
   for (auto const& c : uri::pctdecoder{input}) {
     out += c;
@@ -45,7 +45,7 @@ TEST_P (UriPctDecode, RangeBasedForLoop) {
 #if defined(__cpp_lib_ranges) && __cpp_lib_ranges >= 201811L
 // NOLINTNEXTLINE
 TEST_P (UriPctDecode, RangesCopy) {
-  auto const [input, expected] = GetParam ();
+  auto const& [input, expected] = GetParam ();
   std::string out;
   auto r = input | uri::views::pctdecode;
   std::ranges::copy (r, std::back_inserter (out));
@@ -53,7 +53,7 @@ TEST_P (UriPctDecode, RangesCopy) {
 }
 // NOLINTNEXTLINE
 TEST_P (UriPctDecode, RangesForEach) {
-  auto const [input, expected] = GetParam ();
+  auto const& [input, expected] = GetParam ();
   std::string out;
   auto r = input | uri::views::pctdecode;
   std::ranges::for_each (r, [&out] (auto c) { out += c; });
