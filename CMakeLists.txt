@@ -18,6 +18,7 @@ project (uri CXX)
 
 option (URI_WERROR "Compiler warnings are errors")
 option (URI_CXX17 "Use C++17 (rather than C++20)" No)
+option (URI_LIBCXX "Use libc++ rather than libstdc++ (clang only)")
 
 if (URI_CXX17)
 set (STANDARD 17)
@@ -83,7 +84,7 @@ function (setup_target target)
     list (APPEND gcc_options -fprofile-arcs -ftest-coverage)
     list (APPEND clang_options -fprofile-instr-generate -fcoverage-mapping)
   endif ()
-  if (LIBCXX)
+  if (URI_LIBCXX)
     list (APPEND clang_options -stdlib=libc++)
   endif ()
 

@@ -27,7 +27,7 @@ jobs:
             build_type: Debug
             cxx_compiler: -DCMAKE_CXX_COMPILER=clang++-15 -DCMAKE_C_COMPILER=clang-15
             generator: Ninja
-            options: -DURI_CXX17=Yes -DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=gold
+            options: -DURI_CXX17=Yes -DURI_LIBCXX=Yes -DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=gold
             os: ubuntu-20.04
 
           - name: Ubuntu-22.04/gcc-11/Debug
@@ -49,7 +49,7 @@ jobs:
             build_type: Debug
             cxx_compiler: -DCMAKE_CXX_COMPILER=clang++-15 -DCMAKE_C_COMPILER=clang-15
             generator: Ninja
-            options: -DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=gold
+            options: -DURI_LIBCXX=Yes -DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=gold
             os: ubuntu-22.04
 
           - name: Ubuntu-22.04/clang-15/Release
@@ -57,7 +57,7 @@ jobs:
             build_type: Release
             cxx_compiler: -DCMAKE_CXX_COMPILER=clang++-15 -DCMAKE_C_COMPILER=clang-15
             generator: Ninja
-            options: -DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=gold
+            options: -DURI_LIBCXX=Yes -DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=gold
             os: ubuntu-22.04
 
           - name: Ubuntu-22.04/clang-15/Release/C++17
@@ -65,7 +65,7 @@ jobs:
             build_type: Release
             cxx_compiler: -DCMAKE_CXX_COMPILER=clang++-15 -DCMAKE_C_COMPILER=clang-15
             generator: Ninja
-            options: -DURI_CXX17=Yes -DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=gold
+            options: -DURI_CXX17=Yes -DURI_LIBCXX=Yes -DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=gold
             os: ubuntu-22.04
 
           # Windows builds
