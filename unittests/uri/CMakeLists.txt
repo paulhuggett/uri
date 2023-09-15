@@ -18,7 +18,7 @@ add_executable (unittest
   test_rule.cpp
   test_uri.cpp
 )
-target_link_libraries (unittest uri gmock_main)
+target_link_libraries (unittest uri gtest gmock gmock_main)
 setup_target (unittest)
 set (clang_options -Wno-global-constructors -Wno-used-but-marked-unused)
 set (gcc_options)

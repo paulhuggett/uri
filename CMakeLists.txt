@@ -142,7 +142,7 @@ function (setup_gtest)
         endif ()
       endif ()
 
-      if (LIBCXX)
+      if (URI_LIBCXX)
         list (APPEND gclang_options -stdlib=libc++)
       endif ()
 
