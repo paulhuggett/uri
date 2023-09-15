@@ -101,6 +101,11 @@ function (setup_target target)
     $<$<CXX_COMPILER_ID:MSVC>:>
   )
 
+  # FIXME: these are hacked in until the C++20 views helpers are conditionally defined.
+  target_compile_definitions (${target} PUBLIC _LIBCPP_ENABLE_EXPERIMENTAL)
+  target_compile_options (${target} PRIVATE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>:-stdlib=libc++>)
+  target_link_options (${target} PRIVATE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>:-stdlib=libc++>)
+
 endfunction (setup_target)
 
 function (setup_gtest)

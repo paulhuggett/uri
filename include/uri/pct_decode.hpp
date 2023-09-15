@@ -22,6 +22,7 @@
 #include <cstddef>
 #include <iterator>
 #include <string_view>
+#include <utility>
 
 #if __has_include(<version>)
 #include <version>
@@ -30,13 +31,232 @@
 #if defined(__cpp_concepts) && defined(__cpp_lib_concepts)
 #include <concepts>
 #endif
+
 #if defined(__cpp_lib_ranges) && __cpp_lib_ranges >= 201811L
 #include <ranges>
+#define URI_PCTDECODE_RANGES 1
+#else
+#define URI_PCTDECODE_RANGES 0
 #endif
 
 namespace uri {
 
-/// pct_decode_iterator is a forward-iterator which will produce characters from
+namespace details {
+
+inline constexpr std::byte bad = std::byte{0b1'0000};
+
+/// Convert the argument character from a hexadecimal character code
+/// (A-F/a-f/0-9) to an integer in the range 0-15. If the input character is
+/// not a valid hex character code, returns uri::bad.
+#if defined(__cpp_concepts) && defined(__cpp_lib_concepts)
+template <std::integral ValueT>
+#else
+template <typename ValueT,
+          typename = std::enable_if_t<std::is_integral_v<ValueT>>>
+#endif
+constexpr std::byte hex2dec (ValueT const digit) noexcept {
+  if (digit >= 'a' && digit <= 'f') {
+    return static_cast<std::byte> (static_cast<unsigned> (digit) - ('a' - 10));
+  }
+  if (digit >= 'A' && digit <= 'F') {
+    return static_cast<std::byte> (static_cast<unsigned> (digit) - ('A' - 10));
+  }
+  if (digit >= '0' && digit <= '9') {
+    return static_cast<std::byte> (static_cast<unsigned> (digit) - '0');
+  }
+  return bad;
+}
+constexpr bool either_bad (std::byte n1, std::byte n2) noexcept {
+  return ((n1 | n2) & bad) != std::byte{0};
+}
+
+template <typename Iterator>
+Iterator increment (Iterator pos, Iterator end) {
+  auto remaining = std::distance (pos, end);
+  assert (remaining > 0);
+  // Remove 1 character unless we've got a '%' followed by two legal hex
+  // characters in which case we remove 3.
+  std::advance (pos,
+                remaining >= 3 && *pos == '%' &&
+                    !either_bad (hex2dec (*(pos + 1)), hex2dec (*(pos + 2)))
+                  ? 3
+                  : 1);
+  return pos;
+}
+
+template <typename ReferenceType, typename Iterator, typename ValueType>
+ReferenceType deref (Iterator pos, Iterator end, ValueType* const hex) {
+  ReferenceType c = *pos;
+  if (c != '%' || std::distance (pos, end) < 3) {
+    return c;
+  }
+  auto const nhi = hex2dec (*(pos + 1));
+  auto const nlo = hex2dec (*(pos + 2));
+  // If either character isn't valid hex, then return the original.
+  if (either_bad (nhi, nlo)) {
+    return c;
+  }
+  *hex = static_cast<ValueType> ((nhi << 4) | nlo);
+  return *hex;
+}
+
+}  // end namespace details
+
+#if URI_PCTDECODE_RANGES
+template <std::ranges::input_range View>
+  requires std::ranges::forward_range<View>
+class pctdecode_view
+    : public std::ranges::view_interface<pctdecode_view<View>> {
+  class iterator;
+  class sentinel;
+
+public:
+  pctdecode_view ()
+    requires std::default_initializable<View>
+  = default;
+
+  constexpr explicit pctdecode_view (View base) : base_{std::move (base)} {}
+
+  template <typename Vp = View>
+  constexpr View base () const&
+    requires std::copy_constructible<Vp>
+  {
+    return base_;
+  }
+  constexpr View base () && { return std::move (base_); }
+
+  constexpr iterator begin () { return {*this, std::ranges::begin (base_)}; }
+
+  constexpr auto end () {
+    if constexpr (std::ranges::common_range<View>) {
+      return iterator{*this, std::ranges::end (base_)};
+    } else {
+      return sentinel{*this};
+    }
+  }
+
+private:
+  [[no_unique_address]] View base_ = View{};
+};
+
+template <class Range>
+pctdecode_view (Range&&) -> pctdecode_view<std::views::all_t<Range>>;
+
+template <std::ranges::input_range View>
+  requires std::ranges::forward_range<View>
+class pctdecode_view<View>::iterator {
+public:
+  using iterator_concept = std::forward_iterator_tag;
+  using iterator_category = std::forward_iterator_tag;
+  using value_type = std::ranges::range_value_t<View>;
+  using difference_type = std::ranges::range_difference_t<View>;
+
+  iterator ()
+    requires std::default_initializable<std::ranges::iterator_t<View>>
+  = default;
+
+  constexpr iterator (pctdecode_view& parent,
+                      std::ranges::iterator_t<View> current)
+      : parent_{std::addressof (parent)}, pos_{std::move (current)} {}
+
+  constexpr std::ranges::iterator_t<View> const& base () const& noexcept {
+    return pos_;
+  }
+  constexpr std::ranges::iterator_t<View> base () && {
+    return std::move (pos_);
+  }
+
+  constexpr std::ranges::range_reference_t<View> operator* () const {
+    return details::deref<std::ranges::range_reference_t<View>> (
+      pos_, std::ranges::end (parent_->base_), &hex_);
+  }
+  constexpr std::ranges::iterator_t<View> operator->() const
+    requires std::copyable<std::ranges::iterator_t<View>>
+  {
+    return &(**this);
+  }
+
+  constexpr iterator& operator++ () {
+    pos_ = details::increment (pos_, std::ranges::end (parent_->base_));
+    return *this;
+  }
+
+  constexpr iterator operator++ (int) {
+    auto old = *this;
+    ++(*this);
+    return old;
+  }
+
+  friend constexpr bool operator== (iterator const& x, iterator const& y)
+    requires std::equality_comparable<std::ranges::iterator_t<View>>
+  {
+    return x.pos_ == y.pos_;
+  }
+
+  friend constexpr std::ranges::range_rvalue_reference_t<View> iter_move (
+    iterator const& it) noexcept (noexcept (std::ranges::iter_move (it.pos_))) {
+    return std::ranges::iter_move (it.pos_);
+  }
+
+  friend constexpr void iter_swap (
+    iterator const& x,
+    iterator const& y) noexcept (noexcept (std::ranges::iter_swap (x.pos_,
+                                                                   y.pos_)))
+    requires std::indirectly_swappable<std::ranges::iterator_t<View>>
+  {
+    return std::ranges::iter_swap (x.pos_, y.pos_);
+  }
+
+private:
+  [[no_unique_address]] pctdecode_view* parent_ = nullptr;
+  [[no_unique_address]] std::ranges::iterator_t<View> pos_ =
+    std::ranges::iterator_t<View> ();
+  mutable std::ranges::range_value_t<View> hex_ = 0;
+};
+
+template <std::ranges::input_range View>
+  requires std::ranges::forward_range<View>
+class pctdecode_view<View>::sentinel {
+public:
+  sentinel () = default;
+  constexpr explicit sentinel (pctdecode_view& parent)
+      : end_{std::ranges::end (parent.base_)} {}
+
+  constexpr std::ranges::sentinel_t<View> base () const { return end_; }
+  friend constexpr bool operator== (iterator const& x, sentinel const& y) {
+    return x.current_ == y.end_;
+  }
+
+private:
+  std::ranges::sentinel_t<View> end_{};
+};
+
+namespace details {
+
+struct pctdecode_range_adaptor {
+  template <std::ranges::viewable_range Range>
+  constexpr auto operator() (Range&& r) const {
+    return pctdecode_view{std::forward<Range> (r)};
+  }
+};
+
+template <std::ranges::viewable_range Range>
+constexpr auto operator| (Range&& r, pctdecode_range_adaptor const& adaptor) {
+  return adaptor (std::forward<Range> (r));
+}
+
+}  // end namespace details
+
+namespace views {
+inline constexpr auto pctdecode = details::pctdecode_range_adaptor{};
+
+// inline constexpr auto pctdecode_lower = uri::views::pctdecode |
+// std::views::transform([] (auto c) { return std::tolower (c); });
+}  // end namespace views
+
+#endif  // URI_PCTDECODE_RANGES
+
+/// pctdecode_iterator is a forward-iterator which will produce characters from
 /// a string-view instance. Each time that it encounters a percent character "%"
 /// followed by two hexadecimal digits, the hexadecimal value is decoded. For
 /// example, "%20" is the percent-encoding for character 32 which in US-ASCII
@@ -46,200 +266,99 @@ namespace uri {
 ///
 /// If the two characters following the percent character are _not_ valid
 /// hexadecimal digits, the text is left unchanged.
-#ifdef __cpp_concepts
-template <std::integral CharT>
-#else
-template <typename CharT,
-          typename = std::enable_if_t<std::is_integral_v<CharT>>>
-#endif
-class pct_decode_iterator {
-  using string_view = std::basic_string_view<CharT>;
-
+template <typename Iterator>
+class pctdecode_iterator {
 public:
   using iterator_category = std::forward_iterator_tag;
-  using value_type = CharT;
+  using value_type = typename std::iterator_traits<Iterator>::value_type;
   using difference_type = std::ptrdiff_t;
   using pointer = value_type const*;
   using reference = value_type const&;
 
-  constexpr pct_decode_iterator () noexcept = default;
-  explicit constexpr pct_decode_iterator (string_view str) noexcept
-      : str_{str} {}
+  constexpr pctdecode_iterator () noexcept = default;
+  constexpr pctdecode_iterator (Iterator first, Iterator last)
+      : pos_{first}, end_{last} {}
 
-  constexpr bool operator== (pct_decode_iterator const& other) const noexcept {
-    return str_ == other.str_;
+  constexpr bool operator== (pctdecode_iterator const& other) const noexcept {
+    assert (end_ == other.end_ &&
+            "Comparing iterators that refer to different inputs");
+    return pos_ == other.pos_ && end_ == other.end_;
   }
 #if __cplusplus < 202002L
-  constexpr bool operator!= (pct_decode_iterator const& other) const noexcept {
-    return str_ != other.str_;
+  constexpr bool operator!= (pctdecode_iterator const& other) const noexcept {
+    return !operator== (other);
   }
 #endif
 
   reference operator* () const {
-    reference c = str_[0];
-    if (c != '%' || str_.length () < 3) {
-      return c;
-    }
-    auto const nhi = hex2dec (str_[1]);
-    auto const nlo = hex2dec (str_[2]);
-    // If either character isn't valid hex, then return the original.
-    if (either_bad (nhi, nlo)) {
-      return c;
-    }
-    hex_ = static_cast<value_type> ((nhi << 4) | nlo);
-    return hex_;
+    return details::deref<reference> (pos_, end_, &hex_);
   }
   pointer operator->() const { return &(**this); }
 
-  pct_decode_iterator& operator++ () {
-    using size_type = std::string_view::size_type;
-    assert (!str_.empty ());
-    // Remove 1 character unless we've got a '%' followed by two legal hex
-    // characters in which case we remove 3.
-    str_.remove_prefix (str_.length () >= 3 && str_[0] == '%' &&
-                            !either_bad (hex2dec (str_[1]), hex2dec (str_[2]))
-                          ? size_type{3}
-                          : size_type{1});
+  pctdecode_iterator& operator++ () {
+    pos_ = details::increment (pos_, end_);
     return *this;
   }
-  pct_decode_iterator operator++ (int) {
+  pctdecode_iterator operator++ (int) {
     auto const prev = *this;
     ++(*this);
     return prev;
   }
 
-  constexpr string_view str () const noexcept { return str_; }
-
 private:
-  static constexpr std::byte bad = std::byte{0b1'0000};
-  /// Convert the argument character from a hexadecimal character code
-  /// (A-F/a-f/0-9) to an integer in the range 0-15. If the input character is
-  /// not a valid hex character code, returns pct_decode::bad.
-  static constexpr std::byte hex2dec (value_type const digit) noexcept {
-    if (digit >= 'a' && digit <= 'f') {
-      return static_cast<std::byte> (static_cast<unsigned> (digit) -
-                                     ('a' - 10));
-    }
-    if (digit >= 'A' && digit <= 'F') {
-      return static_cast<std::byte> (static_cast<unsigned> (digit) -
-                                     ('A' - 10));
-    }
-    if (digit >= '0' && digit <= '9') {
-      return static_cast<std::byte> (static_cast<unsigned> (digit) - '0');
-    }
-    return bad;
-  }
-  static bool either_bad (std::byte n1, std::byte n2) noexcept {
-    return ((n1 | n2) & bad) != std::byte{0};
-  }
-
-  string_view str_;
+  Iterator pos_{};
+  Iterator end_{};
   mutable value_type hex_ = 0;
 };
 
-template <typename CharT>
-pct_decode_iterator (std::basic_string_view<CharT>)
-  -> pct_decode_iterator<CharT>;
+template <typename Iterator>
+pctdecode_iterator (Iterator, Iterator) -> pctdecode_iterator<Iterator>;
 
-template <typename CharT>
-constexpr auto pct_decode_begin (std::basic_string_view<CharT> str) noexcept {
-  return pct_decode_iterator<CharT>{str};
+template <typename Container>
+constexpr auto pctdecode_begin (Container const& c) noexcept {
+  return pctdecode_iterator{std::begin (c), std::end (c)};
 }
-template <typename CharT>
-constexpr auto pct_decode_end (std::basic_string_view<CharT> str) noexcept {
-  return pct_decode_iterator{str.substr (str.length ())};
+template <typename Container>
+constexpr auto pctdecode_end (Container const& c) noexcept {
+  return pctdecode_iterator{std::end (c), std::end (c)};
 }
 
-template <typename CharT>
-class pct_decoder {
+namespace details {
+template <typename T>
+constexpr auto has_begin_end (int)
+  -> decltype (begin (std::declval<T&> ()), end (std::declval<T&> ()),
+               std::true_type{});
+
+template <typename T>
+constexpr auto has_begin_end (...) -> std::false_type;
+
+template <typename T>
+inline constexpr bool has_begin_end_v = decltype (has_begin_end<T> (0))::value;
+}  // namespace details
+
+template <typename Iterator>
+class pctdecoder {
 public:
-  explicit constexpr pct_decoder (std::basic_string_view<CharT> str) noexcept
-      : begin_{pct_decode_begin (str)}, end_{pct_decode_end (str)} {}
+  template <typename Container,
+            typename = std::enable_if_t<
+              details::has_begin_end_v<Container> &&
+              (std::is_same_v<Iterator, typename Container::iterator> ||
+               std::is_same_v<Iterator, typename Container::const_iterator>)>>
+  explicit constexpr pctdecoder (Container const& c) noexcept
+      : begin_{pctdecode_begin (c)}, end_{pctdecode_end (c)} {}
+  constexpr pctdecoder (Iterator begin, Iterator end) noexcept
+      : begin_{pctdecode_iterator (begin, end)},
+        end_{pctdecode_iterator (end, end)} {}
   constexpr auto begin () const { return begin_; }
   constexpr auto end () const { return end_; }
 
 private:
-  pct_decode_iterator<CharT> begin_;
-  pct_decode_iterator<CharT> end_;
+  pctdecode_iterator<Iterator> begin_;
+  pctdecode_iterator<Iterator> end_;
 };
 
-template <typename CharT>
-pct_decoder (std::basic_string_view<CharT>) -> pct_decoder<CharT>;
-template <typename CharT>
-pct_decoder (std::basic_string<CharT>) -> pct_decoder<CharT>;
-template <typename CharT>
-pct_decoder (CharT const*) -> pct_decoder<CharT>;
-
-#ifdef __cpp_concepts
-template <std::integral CharT>
-#else
-template <typename CharT,
-          typename = std::enable_if_t<std::is_integral_v<CharT>>>
-#endif
-class pct_decode_lower_iterator {
-public:
-  using iterator_category = std::forward_iterator_tag;
-  using value_type = CharT;
-  using difference_type = std::ptrdiff_t;
-  using pointer = value_type const*;
-  using reference = value_type const&;
-
-  constexpr pct_decode_lower_iterator () noexcept = default;
-  explicit constexpr pct_decode_lower_iterator (
-    std::basic_string_view<CharT> str) noexcept
-      : it_{str} {}
-
-  constexpr bool operator== (
-    pct_decode_lower_iterator const& other) const noexcept {
-    return it_ == other.it_;
-  }
-#if __cplusplus < 202002L
-  constexpr bool operator!= (
-    pct_decode_lower_iterator const& other) const noexcept {
-    return it_ != other.it_;
-  }
-#endif
-  reference operator* () const {
-    c_ = static_cast<CharT> (std::tolower (static_cast<int> (*it_)));
-    return c_;
-  }
-  pointer operator->() const { return &(**this); }
-  pct_decode_lower_iterator& operator++ () {
-    ++it_;
-    return *this;
-  }
-  pct_decode_lower_iterator operator++ (int) {
-    auto prev = *this;
-    ++(*this);
-    return prev;
-  }
-
-private:
-  pct_decode_iterator<CharT> it_;
-  mutable value_type c_ = '\0';
-};
-
-template <typename CharT>
-pct_decode_lower_iterator (std::basic_string_view<CharT>)
-  -> pct_decode_lower_iterator<CharT>;
-
-template <typename CharT>
-class pct_decoder_lower {
-public:
-  explicit constexpr pct_decoder_lower (
-    std::basic_string_view<CharT> str) noexcept
-      : begin_{pct_decode_lower_iterator{str}},
-        end_{pct_decode_lower_iterator{str.substr (str.length ())}} {}
-  constexpr auto begin () const { return begin_; }
-  constexpr auto end () const { return end_; }
-
-private:
-  pct_decode_lower_iterator<CharT> begin_;
-  pct_decode_lower_iterator<CharT> end_;
-};
-
-template <typename CharT>
-pct_decoder_lower (std::basic_string_view<CharT>) -> pct_decoder_lower<CharT>;
+template <typename Container>
+pctdecoder (Container) -> pctdecoder<typename Container::const_iterator>;
 
 }  // end namespace uri
 

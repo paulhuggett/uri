@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: MIT
 //
 //===----------------------------------------------------------------------===//
-#include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
 #include <tuple>
 
@@ -28,7 +28,7 @@ class UriPctDecode : public testing::TestWithParam<
 TEST_P (UriPctDecode, RawIterator) {
   auto const [input, expected] = GetParam ();
   std::string out;
-  std::copy (uri::pct_decode_begin (input), uri::pct_decode_end (input),
+  std::copy (uri::pctdecode_begin (input), uri::pctdecode_end (input),
              std::back_inserter (out));
   EXPECT_EQ (out, expected);
 }
@@ -36,31 +36,30 @@ TEST_P (UriPctDecode, RawIterator) {
 TEST_P (UriPctDecode, RangeBasedForLoop) {
   auto const [input, expected] = GetParam ();
   std::string out;
-  for (auto const& c : uri::pct_decoder{input}) {
+  for (auto const& c : uri::pctdecoder{input}) {
     out += c;
   }
   EXPECT_EQ (out, expected);
 }
-#if 0
+
 #if defined(__cpp_lib_ranges) && __cpp_lib_ranges >= 201811L
 // NOLINTNEXTLINE
 TEST_P (UriPctDecode, RangesCopy) {
   auto const [input, expected] = GetParam ();
   std::string out;
-  std::ranges::copy (uri::pct_decode_iterator{input}, std::default_sentinel,
-                     std::back_inserter (out));
+  auto r = input | uri::views::pctdecode;
+  std::ranges::copy (r, std::back_inserter (out));
   EXPECT_EQ (out, expected);
 }
 // NOLINTNEXTLINE
 TEST_P (UriPctDecode, RangesForEach) {
   auto const [input, expected] = GetParam ();
   std::string out;
-  std::ranges::for_each (uri::pct_decode (input),
-                         [&out] (auto c) { out += c; });
+  auto r = input | uri::views::pctdecode;
+  std::ranges::for_each (r, [&out] (auto c) { out += c; });
   EXPECT_EQ (out, expected);
 }
 #endif  // __cpp_lib_ranges
-#endif
 
 INSTANTIATE_TEST_SUITE_P (
   UriPctDecode, UriPctDecode,
@@ -73,5 +72,5 @@ INSTANTIATE_TEST_SUITE_P (
     std::make_tuple ("ab%"sv, "ab%"sv),            // lonely percent at end
     std::make_tuple ("ab%a"sv, "ab%a"sv),    // percent then one hex at end
     std::make_tuple ("ab%qq"sv, "ab%qq"sv),  // percent then no hex
-    std::make_tuple ("ab%1q"sv, "ab%1q"sv)   // percent then no hex
+    std::make_tuple ("ab%1q"sv, "ab%1q"sv)   // percent then one hex
     ));
