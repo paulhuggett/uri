@@ -22,7 +22,7 @@ option (URI_LIBCXX "Use libc++ rather than libstdc++ (clang only)")
 
 if (URI_CXX17)
 set (STANDARD 17)
-else
+else ()
 set (STANDARD 20)
 endif ()
 
