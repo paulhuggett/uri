@@ -13,3 +13,5 @@ This is a standalone C++17 library providing RFC 3986 compliant functions for pa
 [![CodeQL](https://github.com/paulhuggett/uri/actions/workflows/codeql.yml/badge.svg)](https://github.com/paulhuggett/uri/actions/workflows/codeql.yml)
 
 [![Fuzz Test](https://github.com/paulhuggett/uri/actions/workflows/fuzztest.yaml/badge.svg)](https://github.com/paulhuggett/uri/actions/workflows/fuzztest.yaml)
+
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/paulhuggett/uri/badge)](https://securityscorecards.dev/viewer/?uri=github.com/paulhuggett/uri)
