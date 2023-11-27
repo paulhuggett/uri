@@ -33,7 +33,8 @@ target_compile_options (
 )
 
 if (URI_FUZZTEST)
-  link_fuzztest(unittest)
+  target_link_libraries (unittest PUBLIC gtest gmock)
+  link_fuzztest (unittest)
   gtest_discover_tests (unittest)
 else ()
   target_link_libraries (unittest PUBLIC gmock_main)
