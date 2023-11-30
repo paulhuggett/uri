@@ -91,6 +91,6 @@ function (setup_target target)
       $<$<CXX_COMPILER_ID:GNU>:${gcc_options}>
       $<$<CXX_COMPILER_ID:MSVC>:>
   )
-  target_compile_definitions (${target} PUBLIC URI_FUZZTEST=$<BOOL:$URI_FUZZTEST>)
+  target_compile_definitions (${target} PUBLIC URI_FUZZTEST=$<BOOL:${URI_FUZZTEST}>)
 
 endfunction (setup_target)
