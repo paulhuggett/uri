@@ -12,9 +12,11 @@
 #===----------------------------------------------------------------------===//
 cmake_minimum_required (VERSION 3.19)
 project (uri CXX)
+list (APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 option (URI_CXX17 "Use C++17 (rather than C++20)" No)
 option (URI_FUZZTEST "Enable FuzzTest")
+option (URI_FUZZTEST_MODE "The value of FUZZTEST_FUZZING_MODE (ignored unless URI_FUZZTEST is enabled)")
 option (URI_LIBCXX "Use libc++ rather than libstdc++")
 option (URI_WERROR "Compiler warnings are errors")
 
@@ -28,157 +30,29 @@ if (URI_LIBCXX)
   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
 endif (URI_LIBCXX)
 
-include (CheckCXXCompilerFlag)
-
-# Configure the named target with a standard set of options which enable lots
-# of warnings, select the desired language standard, and so on.
-function (setup_target target)
-  set (
-    clang_options
-    -Weverything
-    -Wno-c++14-extensions
-    -Wno-c++98-compat
-    -Wno-c++98-compat-pedantic
-    -Wno-c99-extensions
-    -Wno-exit-time-destructors
-    -Wno-padded
-    -Wno-undef
-    -Wno-weak-vtables
-  )
-  set (gcc_options -Wall -Wextra -pedantic -Wno-maybe-uninitialized)
-  set (
-    msvc_options
-    -W4 # enable lots of warnings
-    -wd4068 # unknown pragma
-    -wd4324 # structure was padded due to alignment specifier
-  )
-
-  if (CMAKE_CXX_COMPILER_ID MATCHES "Clang$")
-    check_cxx_compiler_flag (
-      -Wno-return-std-move-in-c++11 CLANG_RETURN_STD_MOVE_IN_CXX11
-    )
-    if (${CLANG_RETURN_STD_MOVE_IN_CXX11})
-      list (APPEND clang_options -Wno-return-std-move-in-c++11)
-    endif ()
-    check_cxx_compiler_flag (-Wno-c++20-compat CLANG_W_NO_CXX20_COMPAT)
-    if (${CLANG_W_NO_CXX20_COMPAT})
-      list (APPEND clang_options -Wno-c++20-compat)
-    endif ()
-    check_cxx_compiler_flag (-Wno-c++2a-compat CLANG_W_NO_CXX2A_COMPAT)
-    if (${CLANG_W_NO_CXX2A_COMPAT})
-      list (APPEND clang_options -Wno-c++2a-compat)
-    endif ()
-    check_cxx_compiler_flag (
-      -Wno-unsafe-buffer-usage CLANG_W_UNSAFE_BUFFER_USAGE
-    )
-    if (${CLANG_W_UNSAFE_BUFFER_USAGE})
-      list (APPEND clang_options -Wno-unsafe-buffer-usage)
-    endif ()
-  endif ()
-
-  if (URI_WERROR)
-    list (APPEND clang_options -Werror)
-    list (APPEND gcc_options -Werror)
-    list (APPEND msvc_options /WX)
-  endif ()
-
-  if (COVERAGE)
-    list (APPEND gcc_options -fprofile-arcs -ftest-coverage)
-    list (APPEND clang_options -fprofile-instr-generate -fcoverage-mapping)
-  endif ()
-
-  set_target_properties (
-    ${target}
-    PROPERTIES CXX_STANDARD ${STANDARD}
-               CXX_STANDARD_REQUIRED Yes
-               CXX_EXTENSIONS No
-  )
-
-  set (is_clang $<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>)
-  target_compile_options (
-    ${target}
-    PRIVATE
-      $<${is_clang}>:${clang_options}>
-      $<$<CXX_COMPILER_ID:GNU>:${gcc_options}>
-      $<$<CXX_COMPILER_ID:MSVC>:${msvc_options}>
-  )
-  target_link_options (
-    ${target}
-    PRIVATE
-      $<${is_clang}>:${clang_options}>
-      $<$<CXX_COMPILER_ID:GNU>:${gcc_options}>
-      $<$<CXX_COMPILER_ID:MSVC>:>
-  )
-  if (URI_FUZZTEST)
-    target_compile_definitions (${target} PUBLIC URI_FUZZTEST=1)
-  else()
-    target_compile_definitions (${target} PUBLIC URI_FUZZTEST=0)
-  endif ()
-
-endfunction (setup_target)
-
-# Configure the Google Test targets for our build.
-function (setup_gtest)
-  if (EXISTS "${URI_ROOT}/googletest/CMakeLists.txt")
-    # Tell gtest to link against the "Multi-threaded Debug DLL runtime library"
-    # on Windows.
-    set (gtest_force_shared_crt On CACHE BOOL "Always use msvcrt.dll")
-    # We don't want to install either gtest or gmock.
-    set (INSTALL_GTEST Off CACHE BOOL "Disable gtest install")
-    set (INSTALL_GMOCK Off CACHE BOOL "Disable gmock install")
-    add_subdirectory ("${URI_ROOT}/googletest")
-
-    set (gclangopts )
-    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang$")
-      check_cxx_compiler_flag (
-        -Wno-implicit-int-float-conversion
-        CLANG_W_NO_IMPLICIT_INT_FLOAT_CONVERSION
-      )
-      if (${CLANG_W_NO_IMPLICIT_INT_FLOAT_CONVERSION})
-        list (APPEND gclangopts -Wno-implicit-int-float-conversion)
-      endif ()
-    endif ()
-
-    set (is_clang $<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>)
-
-    # Adjust compiler options for the gtest/gmock.
-    foreach (target gtest gmock gmock_main gtest_main)
-      set_target_properties (
-        ${target}
-        PROPERTIES CXX_STANDARD ${STANDARD}
-                   CXX_STANDARD_REQUIRED Yes
-                   CXX_EXTENSIONS No
-      )
-      target_compile_definitions (
-        ${target} PUBLIC GTEST_REMOVE_LEGACY_TEST_CASEAPI_=1
-      )
-      target_compile_options (${target} PRIVATE $<${is_clang}>:${gclangopts}>)
-      target_link_options (${target} PRIVATE $<${is_clang}>:${gclangopts}>)
-    endforeach ()
-  endif ()
-
-endfunction (setup_gtest)
+include (setup_target)
+include (setup_gtest)
 
 set (URI_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
-add_subdirectory (lib)
 
 if (URI_FUZZTEST)
-  include(FetchContent)
-  set(FUZZTEST_REPO_BRANCH "main" CACHE STRING "FuzzTest repository branch.")
-  message("Building fuzztest at branch " ${FUZZTEST_REPO_BRANCH})
-  FetchContent_Declare(
+  include (FetchContent)
+  set (FUZZTEST_REPO_BRANCH "main" CACHE STRING "FuzzTest repository branch.")
+  message ("Building fuzztest at branch " ${FUZZTEST_REPO_BRANCH})
+  FetchContent_Declare (
     fuzztest
     GIT_REPOSITORY https://github.com/google/fuzztest.git
     GIT_TAG ${FUZZTEST_REPO_BRANCH}
   )
-  FetchContent_MakeAvailable(fuzztest)
-  enable_testing()
-  include(GoogleTest)
-  fuzztest_setup_fuzzing_flags()
+  FetchContent_MakeAvailable (fuzztest)
+  enable_testing ()
+  include (GoogleTest)
+  fuzztest_setup_fuzzing_flags ()
 else ()
   setup_gtest ()
 endif (URI_FUZZTEST)
 
+add_subdirectory (lib)
 if (TARGET gtest)
   add_subdirectory (unittests)
 endif ()
