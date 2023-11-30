@@ -1,3 +1,15 @@
+#===- cmake/setup_target.cmake --------------------------------------------===//
+#*           _                 _                       _    *
+#*  ___  ___| |_ _   _ _ __   | |_ __ _ _ __ __ _  ___| |_  *
+#* / __|/ _ \ __| | | | '_ \  | __/ _` | '__/ _` |/ _ \ __| *
+#* \__ \  __/ |_| |_| | |_) | | || (_| | | | (_| |  __/ |_  *
+#* |___/\___|\__|\__,_| .__/   \__\__,_|_|  \__, |\___|\__| *
+#*                    |_|                   |___/           *
+#===----------------------------------------------------------------------===//
+# Distributed under the MIT License.
+# See https://github.com/paulhuggett/uri/blob/main/LICENSE for information.
+# SPDX-License-Identifier: MIT
+#===----------------------------------------------------------------------===//
 include (CheckCXXCompilerFlag)
 
 # Configure the named target with a standard set of options which enable lots

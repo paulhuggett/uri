@@ -1,3 +1,15 @@
+#===- cmake/setup_gtest.cmake ---------------------------------------------===//
+#*           _                       _            _    *
+#*  ___  ___| |_ _   _ _ __     __ _| |_ ___  ___| |_  *
+#* / __|/ _ \ __| | | | '_ \   / _` | __/ _ \/ __| __| *
+#* \__ \  __/ |_| |_| | |_) | | (_| | ||  __/\__ \ |_  *
+#* |___/\___|\__|\__,_| .__/   \__, |\__\___||___/\__| *
+#*                    |_|      |___/                   *
+#===----------------------------------------------------------------------===//
+# Distributed under the MIT License.
+# See https://github.com/paulhuggett/uri/blob/main/LICENSE for information.
+# SPDX-License-Identifier: MIT
+#===----------------------------------------------------------------------===//
 include (CheckCXXCompilerFlag)
 
 # Configure the Google Test targets for our build.
