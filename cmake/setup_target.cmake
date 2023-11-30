@@ -35,27 +35,16 @@ function (setup_target target)
     -wd4324 # structure was padded due to alignment specifier
   )
 
+  set (is_clang $<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>)
   if (CMAKE_CXX_COMPILER_ID MATCHES "Clang$")
-    check_cxx_compiler_flag (
-      -Wno-return-std-move-in-c++11 CLANG_RETURN_STD_MOVE_IN_CXX11
-    )
-    if (${CLANG_RETURN_STD_MOVE_IN_CXX11})
-      list (APPEND clang_options -Wno-return-std-move-in-c++11)
-    endif ()
+    check_cxx_compiler_flag (-Wno-return-std-move-in-c++11 CLANG_W_NO_RETURN_STD_MOVE_IN_CXX11)
+    list (APPEND clang_options $<$<BOOL:${CLANG_W_NO_RETURN_STD_MOVE_IN_CXX11}>:-Wno-return-std-move-in-c++11>)
     check_cxx_compiler_flag (-Wno-c++20-compat CLANG_W_NO_CXX20_COMPAT)
-    if (${CLANG_W_NO_CXX20_COMPAT})
-      list (APPEND clang_options -Wno-c++20-compat)
-    endif ()
+    list (APPEND clang_options $<$<BOOL:${CLANG_W_NO_CXX20_COMPAT}>:-Wno-c++20-compat>)
     check_cxx_compiler_flag (-Wno-c++2a-compat CLANG_W_NO_CXX2A_COMPAT)
-    if (${CLANG_W_NO_CXX2A_COMPAT})
-      list (APPEND clang_options -Wno-c++2a-compat)
-    endif ()
-    check_cxx_compiler_flag (
-      -Wno-unsafe-buffer-usage CLANG_W_UNSAFE_BUFFER_USAGE
-    )
-    if (${CLANG_W_UNSAFE_BUFFER_USAGE})
-      list (APPEND clang_options -Wno-unsafe-buffer-usage)
-    endif ()
+    list (APPEND clang_options $<$<BOOL:${CLANG_W_NO_CXX2A_COMPAT}>:-Wno-c++2a-compat>)
+    check_cxx_compiler_flag (-Wno-unsafe-buffer-usage CLANG_W_UNSAFE_BUFFER_USAGE)
+    list (APPEND clang_options $<$<BOOL:${CLANG_W_UNSAFE_BUFFER_USAGE}>:-Wno-unsafe-buffer-usage>)
   endif ()
 
   if (URI_WERROR)
@@ -69,14 +58,7 @@ function (setup_target target)
     list (APPEND clang_options -fprofile-instr-generate -fcoverage-mapping)
   endif ()
 
-  set_target_properties (
-    ${target}
-    PROPERTIES CXX_STANDARD ${STANDARD}
-               CXX_STANDARD_REQUIRED Yes
-               CXX_EXTENSIONS No
-  )
-
-  set (is_clang $<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>)
+  target_compile_features (${target} PUBLIC $<IF:$<BOOL:${URI_CXX17}>,cxx_std_17,cxx_std_20>)
   target_compile_options (
     ${target}
     PRIVATE

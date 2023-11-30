@@ -31,6 +31,7 @@ target_compile_options (
     $<$<CXX_COMPILER_ID:MSVC>:
       -wd4702>
 )
+add_test(NAME unittest COMMAND unittest)
 
 if (URI_FUZZTEST)
   target_link_libraries (unittest PUBLIC gtest gmock)
