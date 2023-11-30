@@ -14,7 +14,7 @@
 
 namespace {
 
-enum code_points {
+enum class code_point : unsigned {
   space = 0x20,
   exclamation_mark = 0x21,
   digit_zero = 0x30,
@@ -25,6 +25,36 @@ enum code_points {
   latin_small_letter_z = 0x7A,
   tilde = 0x7E,
 };
+
+constexpr bool operator<= (unsigned const x, code_point const y) noexcept {
+  return x <= static_cast<std::underlying_type_t<code_point>> (y);
+}
+constexpr bool operator> (unsigned const x, code_point const y) noexcept {
+  return x > static_cast<std::underlying_type_t<code_point>> (y);
+}
+constexpr bool operator>= (unsigned const x, code_point const y) noexcept {
+  return x >= static_cast<std::underlying_type_t<code_point>> (y);
+}
+
+constexpr code_point operator+ (code_point const x, unsigned const y) noexcept {
+  return static_cast<code_point> (
+    static_cast<std::underlying_type_t<code_point>> (x) + y);
+}
+constexpr code_point operator- (code_point const x,
+                                code_point const y) noexcept {
+  using ut = std::underlying_type_t<code_point>;
+  assert (static_cast<ut> (x) >= static_cast<ut> (y));
+  return static_cast<code_point> (static_cast<ut> (x) - static_cast<ut> (y));
+}
+constexpr code_point operator- (unsigned const x, code_point const y) noexcept {
+  using ut = std::underlying_type_t<code_point>;
+  assert (x >= static_cast<ut> (y));
+  return static_cast<code_point> (x - static_cast<ut> (y));
+}
+std::uint_least8_t& operator-= (std::uint_least8_t& x, code_point const y) {
+  x = static_cast<std::uint_least8_t> (x - y);
+  return x;
+}
 
 }  // end anonymous namespace
 
@@ -68,31 +98,31 @@ bool needs_pctencode (std::uint_least8_t c, pctencode_set es) noexcept {
     0b0111'1000,  // U+007D RIGHT CURLY BRACKET
     0b0100'0000,  // U+007E TILDE
   }};
-  constexpr auto num_digits = 10;
-  constexpr auto num_alpha = 26;
+  constexpr auto num_digits = 10U;
+  constexpr auto num_alpha = 26U;
   // Code point of the first entry in the table.
-  constexpr auto table_first = exclamation_mark;
+  constexpr auto table_first = code_point::exclamation_mark;
   constexpr auto capital_letter_adjustment = table_first + num_digits;
   constexpr auto small_letter_adjustment = table_first + num_digits + num_alpha;
 
-  if (c <= space || c > tilde) {
+  if (c <= code_point::space || c > code_point::tilde) {
     return true;
   }
   c -= table_first;  // C0 control codes were removed.
-  if (c >= digit_zero - table_first) {
-    if (c <= digit_nine - table_first) {
+  if (c >= code_point::digit_zero - table_first) {
+    if (c <= code_point::digit_nine - table_first) {
       return false;
     }
     c -= num_digits;  // The digits are missing from the table.
   }
-  if (c >= latin_capital_letter_a - capital_letter_adjustment) {
-    if (c <= latin_capital_letter_z - capital_letter_adjustment) {
+  if (c >= code_point::latin_capital_letter_a - capital_letter_adjustment) {
+    if (c <= code_point::latin_capital_letter_z - capital_letter_adjustment) {
       return false;  // A latin capital letter.
     }
     c -= num_alpha;  // Upper-case letters are missing from the table.
   }
-  if (c >= latin_small_letter_a - small_letter_adjustment) {
-    if (c <= latin_small_letter_z - small_letter_adjustment) {
+  if (c >= code_point::latin_small_letter_a - small_letter_adjustment) {
+    if (c <= code_point::latin_small_letter_z - small_letter_adjustment) {
       return false;  // A latin lower-case letter.
     }
     c -= num_alpha;  // Lower-case letters are missing.
