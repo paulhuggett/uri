@@ -49,22 +49,29 @@ constexpr auto initial_bias = std::string::size_type{72};
 constexpr auto initial_n = std::string::size_type{0x80};
 constexpr auto delimiter = char{0x2D};
 
-constexpr bool is_basic_code_point (char32_t c) noexcept {
+/// \param c  The code-point to be checked.
+/// \returns true if the \p c represents a "basic" code-point. That is,
+///   a code-point less than U+0080.
+constexpr bool is_basic_code_point (char32_t const c) noexcept {
   return c <= 0x7F;
 }
 
-// returns the basic code point whose value (when used for representing
-// integers) is d, which needs to be in the range 0 to base-1. The lowercase
-// form is used unless flag is nonzero, in which case the uppercase form is
-// used. The behavior is undefined if flag is nonzero and digit d has no
-// uppercase form.
-constexpr char encode_digit (std::string::size_type d) noexcept {
+/// \param d  A value in the range [0,base) to be encoded as an ASCII character.
+/// \returns The basic code point whose value (when used for representing
+/// integers) is d, which needs to be in the range 0 to base-1. The lowercase
+/// form is used.
+constexpr char encode_digit (unsigned const d) noexcept {
   //  0..25 maps to ASCII a..z; 26..35 maps to ASCII 0..9
-  return static_cast<char> (d + 22U + 75U * (d < 26U));
+  assert (d < 36U);
+  static_assert (base == 36U);
+  if (d < 26U) {
+    return static_cast<char> (d + static_cast<unsigned> ('a'));
+  }
+  return static_cast<char> (d - 26U + static_cast<unsigned> ('0'));
 }
 
-constexpr std::string::size_type clamp (std::string::size_type k,
-                                        std::string::size_type bias) {
+constexpr std::string::size_type clamp (std::string::size_type const k,
+                                        std::string::size_type const bias) {
   if (k <= bias) {
     return tmin;
   }
@@ -76,21 +83,24 @@ constexpr std::string::size_type clamp (std::string::size_type k,
 
 template <typename OutputIterator>
 OutputIterator encode_vli (std::string::size_type q,
-                           std::string::size_type bias, OutputIterator out) {
+                           std::string::size_type const bias,
+                           OutputIterator out) {
   for (auto k = base;; k += base) {
     auto const t = clamp (k, bias);
     if (q < t) {
       break;
     }
-    *(out++) = encode_digit (t + (q - t) % (base - t));
+    assert (base >= t);
+    *(out++) = encode_digit (static_cast<unsigned> (t + (q - t) % (base - t)));
     q = (q - t) / (base - t);
   }
-  *(out++) = encode_digit (q);
+  *(out++) = encode_digit (static_cast<unsigned> (q));
   return out;
 }
 
 constexpr std::string::size_type adapt (std::string::size_type delta,
-                                        std::size_t numpoints, bool firsttime) {
+                                        std::size_t const numpoints,
+                                        bool const firsttime) {
   delta = firsttime ? delta / damp : delta >> 1U;
   delta += delta / numpoints;
   auto k = 0U;
@@ -99,6 +109,14 @@ constexpr std::string::size_type adapt (std::string::size_type delta,
     k += base;
   }
   return k + (base - tmin + 1) * delta / (delta + skew);
+}
+
+template <typename Container>
+void sort_and_remove_duplicates (Container& container) {
+  auto const first = container.begin ();
+  auto const last = container.end ();
+  std::sort (first, last);
+  container.erase (std::unique (first, last), last);
 }
 
 }  // namespace details
@@ -118,13 +136,7 @@ OutputIterator encode (std::u32string_view const& input,
       nonbasic += cp;
     }
   }
-  {
-    // Sort and remove duplicates.
-    auto first = nonbasic.begin ();
-    auto last = nonbasic.end ();
-    std::sort (first, last);
-    nonbasic.erase (std::unique (first, last), last);
-  }
+  details::sort_and_remove_duplicates (nonbasic);
   auto i = num_basics;
   if (num_basics > 0) {
     *(output++) = details::delimiter;
