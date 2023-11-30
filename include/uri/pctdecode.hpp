@@ -112,14 +112,13 @@ template <std::ranges::input_range View>
   requires std::ranges::forward_range<View>
 class pctdecode_view
     : public std::ranges::view_interface<pctdecode_view<View>> {
+public:
   class iterator;
   class sentinel;
 
-public:
   pctdecode_view ()
     requires std::default_initializable<View>
   = default;
-
   constexpr explicit pctdecode_view (View base) : base_{std::move (base)} {}
 
   template <typename Vp = View>
@@ -130,9 +129,10 @@ public:
   }
   constexpr View base () && { return std::move (base_); }
 
-  constexpr iterator begin () { return {*this, std::ranges::begin (base_)}; }
-
-  constexpr auto end () {
+  constexpr auto begin () const {
+    return iterator{*this, std::ranges::begin (base_)};
+  }
+  constexpr auto end () const {
     if constexpr (std::ranges::common_range<View>) {
       return iterator{*this, std::ranges::end (base_)};
     } else {
@@ -160,7 +160,7 @@ public:
     requires std::default_initializable<std::ranges::iterator_t<View>>
   = default;
 
-  constexpr iterator (pctdecode_view& parent,
+  constexpr iterator (pctdecode_view const& parent,
                       std::ranges::iterator_t<View> current)
       : parent_{std::addressof (parent)}, pos_{std::move (current)} {}
 
@@ -213,7 +213,7 @@ public:
   }
 
 private:
-  [[no_unique_address]] pctdecode_view* parent_ = nullptr;
+  [[no_unique_address]] pctdecode_view const* parent_ = nullptr;
   [[no_unique_address]] std::ranges::iterator_t<View> pos_ =
     std::ranges::iterator_t<View> ();
   mutable std::ranges::range_value_t<View> hex_ = 0;
