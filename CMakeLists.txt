@@ -35,6 +35,7 @@ include (setup_gtest)
 
 set (URI_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
 
+set (FUZZTEST_FUZZING_MODE  ${URI_FUZZTEST_MODE})
 if (URI_FUZZTEST)
   include (FetchContent)
   set (FUZZTEST_REPO_BRANCH "main" CACHE STRING "FuzzTest repository branch.")
