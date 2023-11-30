@@ -20,7 +20,8 @@ jobs:
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      - name: Checkout
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
 
       - name: Install Dependencies
         run: |
@@ -31,17 +32,16 @@ jobs:
             "libc++-${CLANG_VERSION}-dev"    \
             "libc++abi-${CLANG_VERSION}-dev"
 
-      - name: Configure Build
+      - name: Configure
         run: |
           mkdir "$BUILD_DIR"
           cmake                                            \
             -S .                                           \
             -B "$BUILD_DIR"                                \
-            -D CMAKE_C_COMPILER="clang-$CLANG_VERSION"     \
-            -D CMAKE_CXX_COMPILER="clang++-$CLANG_VERSION" \
             -D CMAKE_BUILD_TYPE=RelWithDebug               \
+            -D CMAKE_CXX_COMPILER="clang++-$CLANG_VERSION" \
+            -D CMAKE_C_COMPILER="clang-$CLANG_VERSION"     \
             -D URI_FUZZTEST=Yes                            \
-            -D URI_FUZZTEST_MODE=On                        \
             -D URI_LIBCXX=Yes
 
       - name: Build

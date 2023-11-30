@@ -91,15 +91,6 @@ function (setup_target target)
       $<$<CXX_COMPILER_ID:GNU>:${gcc_options}>
       $<$<CXX_COMPILER_ID:MSVC>:>
   )
-  if (URI_FUZZTEST)
-    target_compile_definitions (${target} PUBLIC URI_FUZZTEST=1)
-    message ("URI_FUZZTEST_MODE=${URI_FUZZTEST_MODE}")
-    if (URI_FUZZTEST_MODE)
-        message ("setting FUZZTEST_FUZZING_MODE")
-      target_compile_definitions (${target} PUBLIC FUZZTEST_FUZZING_MODE=${URI_FUZZTEST_MODE})
-    endif ()
-  else()
-    target_compile_definitions (${target} PUBLIC URI_FUZZTEST=0)
-  endif ()
+  target_compile_definitions (${target} PUBLIC URI_FUZZTEST=$<BOOL:$URI_FUZZTEST>)
 
 endfunction (setup_target)
