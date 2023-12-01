@@ -36,7 +36,7 @@ public:
   char const* name () const noexcept override;
   std::string message (int error) const override;
 };
-std::error_code make_error_code (decode_error_code const e);
+std::error_code make_error_code (decode_error_code e);
 
 namespace details {
 
