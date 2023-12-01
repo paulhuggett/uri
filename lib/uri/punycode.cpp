@@ -12,6 +12,8 @@
 //===----------------------------------------------------------------------===//
 #include "uri/punycode.hpp"
 
+#include <cstdint>
+
 namespace {
 
 /// \returns The numeric value of a basic code point (for use in representing
