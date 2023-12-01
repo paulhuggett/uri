@@ -902,8 +902,6 @@ std::optional<parts> join (std::string_view base, std::string_view reference,
 }
 
 std::ostream& compose (std::ostream& os, parts const& p) {
-  // assert (!p.authority || p.path.absolute);
-
   if (p.scheme.has_value ()) {
     os << p.scheme.value () << ':';
   }
