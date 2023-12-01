@@ -29,6 +29,13 @@ TEST (Punycode, Delimiter) {
 }
 
 // NOLINTNEXTLINE
+TEST (Punycode, DelimiterCaps) {
+  auto const orig = std::u32string{0x002C, 0x002D, 0x1BC0};
+  EXPECT_EQ (uri::punycode::decode (",--9CR"),
+             uri::punycode::decode_result{orig});
+}
+
+// NOLINTNEXTLINE
 TEST (Punycode, ArabicEgyptian) {
   // Arabic (Egyptian)
   auto const arabic = std::u32string{
@@ -296,6 +303,13 @@ TEST (Punycode, ExampleS) {
   EXPECT_EQ (actual, encoded);
   EXPECT_EQ (uri::punycode::decode (encoded),
              uri::punycode::decode_result{orig});
+}
+
+// NOLINTNEXTLINE
+TEST (Punycode, BadInput) {
+  EXPECT_EQ (uri::punycode::decode ("eg{|}"),
+             uri::punycode::decode_result{
+               make_error_code (uri::punycode::decode_error_code::bad_input)});
 }
 
 #if URI_FUZZTEST

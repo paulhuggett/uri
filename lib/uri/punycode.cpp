@@ -14,14 +14,20 @@
 
 namespace {
 
-// returns the numeric value of a basic code point (for use in representing
-// integers) in the range 0 to  base-1, or base if cp is does not represent a
+/// \returns The numeric value of a basic code point (for use in representing
+// integers) in the range 0 to base-1, or base if cp is does not represent a
 // value.
 constexpr std::uint_least32_t decode_digit (std::uint_least8_t cp) noexcept {
-  return cp - 48 < 10   ? cp - 22
-         : cp - 65 < 26 ? cp - 65
-         : cp - 97 < 26 ? cp - 97
-                        : uri::punycode::details::base;
+  if (cp - 48 < 10) {
+    return cp - 22;
+  }
+  if (cp - 65 < 26) {
+    return cp - 65;
+  }
+  if (cp - 97 < 26) {
+    return cp - 97;
+  }
+  return uri::punycode::details::base;
 }
 
 // Decode a generalized variable-length integer.
