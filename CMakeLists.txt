@@ -19,12 +19,6 @@ option (URI_FUZZTEST "Enable FuzzTest")
 option (URI_LIBCXX "Use libc++ rather than libstdc++")
 option (URI_WERROR "Compiler warnings are errors")
 
-if (URI_CXX17)
-  set (STANDARD 17)
-else ()
-  set (STANDARD 20)
-endif ()
-
 if (URI_LIBCXX)
   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
 endif (URI_LIBCXX)
