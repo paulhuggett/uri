@@ -106,23 +106,23 @@ auto single_colon (rule const& r) {
 //               / "*" / "+" / "," / ";" / "="
 auto sub_delims (rule const& r) {
   return r.single_char ([] (char const c) {
-    using enum code_point;
     auto const cp = static_cast<code_point> (c);
-    return cp == exclamation_mark || cp == dollar_sign || cp == ampersand ||
-           cp == apostrophe || cp == left_parenthesis ||
-           cp == right_parenthesis || cp == asterisk || cp == plus_sign ||
-           cp == comma || cp == semi_colon || cp == equals_sign;
+    return cp == code_point::exclamation_mark ||
+           cp == code_point::dollar_sign || cp == code_point::ampersand ||
+           cp == code_point::apostrophe || cp == code_point::left_parenthesis ||
+           cp == code_point::right_parenthesis || cp == code_point::asterisk ||
+           cp == code_point::plus_sign || cp == code_point::comma ||
+           cp == code_point::semi_colon || cp == code_point::equals_sign;
   });
 }
 
 // unreserved    = ALPHA / DIGIT / "-" / "." / "_" / "~"
 auto unreserved (rule const& r) {
   return r.single_char ([] (char const c) {
-    using enum code_point;
     auto const cp = static_cast<code_point> (c);
     return static_cast<bool> (std::isalnum (static_cast<int> (c))) ||
-           cp == hyphen_minus || cp == full_stop || cp == low_line ||
-           cp == tilde;
+           cp == code_point::hyphen_minus || cp == code_point::full_stop ||
+           cp == code_point::low_line || cp == code_point::tilde;
   });
 }
 
