@@ -14,29 +14,44 @@
 #define URI_URI_HPP
 
 #include <filesystem>
+#include <iosfwd>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
 
-#include "uri/pctdecode.hpp"
-#include "uri/pctencode.hpp"
-
 namespace uri {
 
-enum class code_points : char32_t {
+enum class code_point : unsigned {
   null = 0x00,
   tab = 0x09,
   lf = 0x0A,
   cr = 0x0D,
   space = 0x20,
-  number_sign = 0x23,
-  solidus = 0x2F,
   exclamation_mark = 0x21,
+  number_sign = 0x23,
+  dollar_sign = 0x24,
+  percent_sign = 0x25,
+  ampersand = 0x26,
+  apostrophe = 0x27,
+  left_parenthesis = 0x28,
+  right_parenthesis = 0x29,
+  asterisk = 0x2A,
+  plus_sign = 0x2B,
+  comma = 0x2C,
+  hyphen_minus = 0x2D,
+  full_stop = 0x2E,
+  solidus = 0x2F,
   digit_zero = 0x30,
+  digit_one = 0x31,
+  digit_two = 0x32,
+  digit_four = 0x34,
+  digit_five = 0x35,
   digit_nine = 0x39,
   colon = 0x3A,
+  semi_colon = 0x3B,
   less_than_sign = 0x3C,
+  equals_sign = 0x3D,
   greater_than_sign = 0x3E,
   question_mark = 0x3F,
   commercial_at = 0x40,
@@ -46,7 +61,9 @@ enum class code_points : char32_t {
   reverse_solidus = 0x5C,
   right_square_bracket = 0x5D,
   circumflex_accent = 0x5E,
+  low_line = 0x5F,
   latin_small_letter_a = 0x61,
+  latin_small_letter_v = 0x76,
   latin_small_letter_z = 0x7A,
   vertical_line = 0x7C,
   tilde = 0x7E,
