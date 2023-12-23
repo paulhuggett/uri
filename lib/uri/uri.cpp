@@ -21,18 +21,19 @@ using namespace uri;
 namespace {
 
 inline auto single_code_point (rule const& r, code_point const cp) {
-  using ut = std::underlying_type_t<code_point>;
-  assert (static_cast<ut> (cp) <=
-          static_cast<ut> (std::numeric_limits<char>::max ()));
+  assert (static_cast<std::underlying_type_t<code_point>> (cp) <=
+          static_cast<std::underlying_type_t<code_point>> (
+            std::numeric_limits<char>::max ()));
   return r.single_char (static_cast<char> (cp));
 }
 
 inline auto code_point_range (code_point const first, code_point const last) {
-  using ut = std::underlying_type_t<code_point>;
-  assert (static_cast<ut> (first) <=
-          static_cast<ut> (std::numeric_limits<char>::max ()));
-  assert (static_cast<ut> (last) <=
-          static_cast<ut> (std::numeric_limits<char>::max ()));
+  assert (static_cast<std::underlying_type_t<code_point>> (first) <=
+          static_cast<std::underlying_type_t<code_point>> (
+            std::numeric_limits<char>::max ()));
+  assert (static_cast<std::underlying_type_t<code_point>> (last) <=
+          static_cast<std::underlying_type_t<code_point>> (
+            std::numeric_limits<char>::max ()));
   return [f = std::tolower (static_cast<int> (first)),
           l = std::tolower (static_cast<int> (last))] (rule const& r) {
     return r.single_char ([=] (char const c) {
