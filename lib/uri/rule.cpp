@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 #include "uri/rule.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <iomanip>
 #include <iostream>
