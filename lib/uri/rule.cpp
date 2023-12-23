@@ -16,6 +16,7 @@
 #include <cassert>
 #include <iomanip>
 #include <iostream>
+#include <iterator>
 
 namespace uri {
 
