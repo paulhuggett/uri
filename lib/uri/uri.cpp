@@ -13,11 +13,81 @@
 #include "uri/uri.hpp"
 #include "uri/rule.hpp"
 
+#include <cassert>
 #include <sstream>
 
 using namespace uri;
 
 namespace {
+
+inline auto single_code_point (rule const& r, code_point const cp) {
+  assert (static_cast<std::underlying_type_t<code_point>> (cp) <=
+          static_cast<std::underlying_type_t<code_point>> (
+            std::numeric_limits<char>::max ()));
+  return r.single_char (static_cast<char> (cp));
+}
+
+inline auto code_point_range (code_point const first, code_point const last) {
+  assert (static_cast<std::underlying_type_t<code_point>> (first) <=
+          static_cast<std::underlying_type_t<code_point>> (
+            std::numeric_limits<char>::max ()));
+  assert (static_cast<std::underlying_type_t<code_point>> (last) <=
+          static_cast<std::underlying_type_t<code_point>> (
+            std::numeric_limits<char>::max ()));
+  return [f = std::tolower (static_cast<int> (first)),
+          l = std::tolower (static_cast<int> (last))] (rule const& r) {
+    return r.single_char ([=] (char const c) {
+      auto const cl = std::tolower (static_cast<int> (c));
+      return cl >= f && cl <= l;
+    });
+  };
+}
+
+inline auto commercial_at (rule const& r) {
+  return single_code_point (r, code_point::commercial_at);
+}
+inline auto colon (rule const& r) {
+  return single_code_point (r, code_point::colon);
+}
+inline auto hash (rule const& r) {
+  return single_code_point (r, code_point::number_sign);
+}
+inline auto plus (rule const& r) {
+  return single_code_point (r, code_point::plus_sign);
+}
+inline auto minus (rule const& r) {
+  return single_code_point (r, code_point::hyphen_minus);
+}
+inline auto solidus (rule const& r) {
+  return single_code_point (r, code_point::solidus);
+}
+inline auto question_mark (rule const& r) {
+  return single_code_point (r, code_point::question_mark);
+}
+inline auto full_stop (rule const& r) {
+  return single_code_point (r, code_point::full_stop);
+}
+inline auto left_square_bracket (rule const& r) {
+  return single_code_point (r, code_point::left_square_bracket);
+}
+inline auto right_square_bracket (rule const& r) {
+  return single_code_point (r, code_point::right_square_bracket);
+}
+inline auto percent_sign (rule const& r) {
+  return single_code_point (r, code_point::percent_sign);
+}
+inline auto digit_one (rule const& r) {
+  return single_code_point (r, code_point::digit_one);
+}
+inline auto digit_two (rule const& r) {
+  return single_code_point (r, code_point::digit_two);
+}
+inline auto digit_five (rule const& r) {
+  return single_code_point (r, code_point::digit_five);
+}
+inline auto latin_small_letter_v (rule const& r) {
+  return single_code_point (r, code_point::latin_small_letter_v);
+}
 
 auto single_colon (rule const& r) {
   return r.concat (colon)
@@ -37,22 +107,29 @@ auto single_colon (rule const& r) {
 //               / "*" / "+" / "," / ";" / "="
 auto sub_delims (rule const& r) {
   return r.single_char ([] (char const c) {
-    return c == '!' || c == '$' || c == '&' || c == '\'' || c == '(' ||
-           c == ')' || c == '*' || c == '+' || c == ',' || c == ';' || c == '=';
+    auto const cp = static_cast<code_point> (c);
+    return cp == code_point::exclamation_mark ||
+           cp == code_point::dollar_sign || cp == code_point::ampersand ||
+           cp == code_point::apostrophe || cp == code_point::left_parenthesis ||
+           cp == code_point::right_parenthesis || cp == code_point::asterisk ||
+           cp == code_point::plus_sign || cp == code_point::comma ||
+           cp == code_point::semi_colon || cp == code_point::equals_sign;
   });
 }
 
 // unreserved    = ALPHA / DIGIT / "-" / "." / "_" / "~"
 auto unreserved (rule const& r) {
   return r.single_char ([] (char const c) {
+    auto const cp = static_cast<code_point> (c);
     return static_cast<bool> (std::isalnum (static_cast<int> (c))) ||
-           c == '-' || c == '.' || c == '_' || c == '~';
+           cp == code_point::hyphen_minus || cp == code_point::full_stop ||
+           cp == code_point::low_line || cp == code_point::tilde;
   });
 }
 
 // pct-encoded   = "%" HEXDIG HEXDIG
 auto pct_encoded (rule const& r) {
-  return r.concat (single_char ('%'))
+  return r.concat (percent_sign)
     .concat (hexdig)
     .concat (hexdig)
     .matched ("pct-encoded", r);
@@ -106,30 +183,33 @@ auto dec_octet (rule const& r) {
   return r
     .alternative (
       [] (rule const& r4) {
-        return r4                          // 250-255
-          .concat (single_char ('2'))      // "2"
-          .concat (single_char ('5'))      // "5"
-          .concat (char_range ('0', '5'))  // %x30-35
+        return r4               // 250-255
+          .concat (digit_two)   // "2"
+          .concat (digit_five)  // "5"
+          .concat (code_point_range (code_point::digit_zero,
+                                     code_point::digit_five))  // %x30-35
           .matched ("\"25\" %x30-35", r4);
       },
       [] (rule const& r3) {
-        return r3                          // 200-249
-          .concat (single_char ('2'))      // "2"
-          .concat (char_range ('0', '4'))  // %x30-34
-          .concat (digit)                  // DIGIT
+        return r3              // 200-249
+          .concat (digit_two)  // "2"
+          .concat (code_point_range (code_point::digit_zero,
+                                     code_point::digit_four))  // %x30-34
+          .concat (digit)                                      // DIGIT
           .matched ("\"2\" %x30-34 DIGIT", r3);
       },
       [] (rule const& r2) {
-        return r2                      // 100-199
-          .concat (single_char ('1'))  // "1"
-          .concat (digit)              // 2DIGIT
-          .concat (digit)              // (...)
+        return r2              // 100-199
+          .concat (digit_one)  // "1"
+          .concat (digit)      // 2DIGIT
+          .concat (digit)      // (...)
           .matched ("\"1\" 2DIGIT", r2);
       },
       [] (rule const& r1) {
-        return r1                          // 10-99
-          .concat (char_range ('1', '9'))  // %x31-39
-          .concat (digit)                  // DIGIT
+        return r1  // 10-99
+          .concat (code_point_range (code_point::digit_one,
+                                     code_point::digit_nine))  // %x31-39
+          .concat (digit)                                      // DIGIT
           .matched ("%x31-39 DIGIT", r1);
       },
       digit)
@@ -286,7 +366,7 @@ auto ipv6address (rule const& r) {
 
 // IPvFuture     = "v" 1*HEXDIG "." 1*( unreserved / sub-delims / ":" )
 auto ipvfuture (rule const& r) {
-  return r.concat (single_char ('v'))
+  return r.concat (latin_small_letter_v)
     .star (hexdig, 1)
     .concat (full_stop)
     .star (

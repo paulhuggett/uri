@@ -12,46 +12,40 @@
 //===----------------------------------------------------------------------===//
 #include "uri/pctencode.hpp"
 
+#include "uri/uri.hpp"
+
 namespace {
 
-enum class code_point : unsigned {
-  space = 0x20,
-  exclamation_mark = 0x21,
-  digit_zero = 0x30,
-  digit_nine = 0x39,
-  latin_capital_letter_a = 0x41,
-  latin_capital_letter_z = 0x5A,
-  latin_small_letter_a = 0x61,
-  latin_small_letter_z = 0x7A,
-  tilde = 0x7E,
-};
-
-constexpr bool operator<= (unsigned const x, code_point const y) noexcept {
-  return x <= static_cast<std::underlying_type_t<code_point>> (y);
+constexpr bool operator<= (unsigned const x, uri::code_point const y) noexcept {
+  return x <= static_cast<std::underlying_type_t<uri::code_point>> (y);
 }
-constexpr bool operator> (unsigned const x, code_point const y) noexcept {
-  return x > static_cast<std::underlying_type_t<code_point>> (y);
+constexpr bool operator> (unsigned const x, uri::code_point const y) noexcept {
+  return x > static_cast<std::underlying_type_t<uri::code_point>> (y);
 }
-constexpr bool operator>= (unsigned const x, code_point const y) noexcept {
-  return x >= static_cast<std::underlying_type_t<code_point>> (y);
+constexpr bool operator>= (unsigned const x, uri::code_point const y) noexcept {
+  return x >= static_cast<std::underlying_type_t<uri::code_point>> (y);
 }
 
-constexpr code_point operator+ (code_point const x, unsigned const y) noexcept {
-  return static_cast<code_point> (
-    static_cast<std::underlying_type_t<code_point>> (x) + y);
+constexpr uri::code_point operator+ (uri::code_point const x,
+                                     unsigned const y) noexcept {
+  return static_cast<uri::code_point> (
+    static_cast<std::underlying_type_t<uri::code_point>> (x) + y);
 }
-constexpr code_point operator- (code_point const x,
-                                code_point const y) noexcept {
-  using ut = std::underlying_type_t<code_point>;
+constexpr uri::code_point operator- (uri::code_point const x,
+                                     uri::code_point const y) noexcept {
+  using ut = std::underlying_type_t<uri::code_point>;
   assert (static_cast<ut> (x) >= static_cast<ut> (y));
-  return static_cast<code_point> (static_cast<ut> (x) - static_cast<ut> (y));
+  return static_cast<uri::code_point> (static_cast<ut> (x) -
+                                       static_cast<ut> (y));
 }
-constexpr code_point operator- (unsigned const x, code_point const y) noexcept {
-  using ut = std::underlying_type_t<code_point>;
+constexpr uri::code_point operator- (unsigned const x,
+                                     uri::code_point const y) noexcept {
+  using ut = std::underlying_type_t<uri::code_point>;
   assert (x >= static_cast<ut> (y));
-  return static_cast<code_point> (x - static_cast<ut> (y));
+  return static_cast<uri::code_point> (x - static_cast<ut> (y));
 }
-std::uint_least8_t& operator-= (std::uint_least8_t& x, code_point const y) {
+std::uint_least8_t& operator-= (std::uint_least8_t& x,
+                                uri::code_point const y) {
   x = static_cast<std::uint_least8_t> (x - y);
   return x;
 }
