@@ -45,21 +45,21 @@ constexpr auto base = 36U;
 constexpr auto tmin = 1U;
 constexpr auto tmax = 26U;
 constexpr auto skew = 38U;
-constexpr auto initial_bias = std::string::size_type{72};
-constexpr auto initial_n = std::string::size_type{0x80};
+constexpr auto initial_bias = std::size_t{72};
+constexpr auto initial_n = std::size_t{0x80};
 constexpr auto delimiter = char{0x2D};
 
 /// \param c  The code-point to be checked.
 /// \returns true if the \p c represents a "basic" code-point. That is,
 ///   a code-point less than U+0080.
 constexpr bool is_basic_code_point (char32_t const c) noexcept {
-  return c <= 0x7F;
+  return c < 0x80;
 }
 
 /// \param d  A value in the range [0,base) to be encoded as an ASCII character.
 /// \returns The basic code point whose value (when used for representing
-/// integers) is d, which needs to be in the range 0 to base-1. The lowercase
-/// form is used.
+///   integers) is d, which needs to be in the range 0 to base-1. The lowercase
+///   form is used.
 constexpr char encode_digit (unsigned const d) noexcept {
   //  0..25 maps to ASCII a..z; 26..35 maps to ASCII 0..9
   assert (d < 36U);
@@ -70,8 +70,8 @@ constexpr char encode_digit (unsigned const d) noexcept {
   return static_cast<char> (d - 26U + static_cast<unsigned> ('0'));
 }
 
-constexpr std::string::size_type clamp (std::string::size_type const k,
-                                        std::string::size_type const bias) {
+constexpr std::size_t clamp (std::size_t const k,
+                             std::size_t const bias) noexcept {
   if (k <= bias) {
     return tmin;
   }
@@ -82,8 +82,7 @@ constexpr std::string::size_type clamp (std::string::size_type const k,
 }
 
 template <typename OutputIterator>
-OutputIterator encode_vli (std::string::size_type q,
-                           std::string::size_type const bias,
+OutputIterator encode_vli (std::size_t q, std::size_t const bias,
                            OutputIterator out) {
   for (auto k = base;; k += base) {
     auto const t = clamp (k, bias);
@@ -98,9 +97,8 @@ OutputIterator encode_vli (std::string::size_type q,
   return out;
 }
 
-constexpr std::string::size_type adapt (std::string::size_type delta,
-                                        std::size_t const numpoints,
-                                        bool const firsttime) {
+constexpr std::size_t adapt (std::size_t delta, std::size_t const numpoints,
+                             bool const firsttime) {
   delta = firsttime ? delta / damp : delta >> 1U;
   delta += delta / numpoints;
   auto k = 0U;
@@ -125,7 +123,7 @@ template <typename OutputIterator>
 OutputIterator encode (std::u32string_view const& input,
                        OutputIterator output) {
   std::u32string nonbasic;
-  std::string::size_type num_basics = 0;
+  auto num_basics = std::size_t{0};
   // Handle the basic code points. Copy them to the output in order followed by
   // a delimiter if any were copied.
   for (auto cp : input) {
@@ -142,14 +140,14 @@ OutputIterator encode (std::u32string_view const& input,
     *(output++) = details::delimiter;
   }
   auto n = details::initial_n;
-  auto delta = std::string::size_type{0};
+  auto delta = std::size_t{0};
   auto bias = details::initial_bias;
   for (char32_t const m : nonbasic) {
     assert (m >= n);
     delta += (m - n) * (i + 1);
     n = m;
-    for (char32_t const c :
-         input) {  // for each code point c in the input (in order)
+    // for each code point c in the input (in order)
+    for (char32_t const c : input) {
       if (c < n) {
         ++delta;  // increment delta (fail on overflow)
       } else if (c == n) {
