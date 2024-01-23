@@ -17,34 +17,45 @@
 namespace {
 
 /// \returns The numeric value of a basic code point (for use in representing
-// integers) in the range 0 to base-1, or base if cp is does not represent a
-// value.
-constexpr std::uint_least32_t decode_digit (std::uint_least8_t cp) noexcept {
-  if (cp - 48 < 10) {
-    return cp - 22;
+///   integers) in the range 0 to base-1, or base if cp is does not represent a
+///   value.
+constexpr unsigned decode_digit (std::uint_least8_t const cp) noexcept {
+  // Digits 0..9 represent values 26..35
+  if (cp - '0' < 10) {
+    return cp - '0' + 26;
   }
-  if (cp - 65 < 26) {
-    return cp - 65;
+  // Letters A..Z (either upper- or lower-case represent values 0..25)
+  if (cp - 'A' < 26) {
+    return cp - 'A';
   }
-  if (cp - 97 < 26) {
-    return cp - 97;
+  if (cp - 'a' < 26) {
+    return cp - 'a';
   }
   return uri::punycode::details::base;
 }
 
-// Decode a generalized variable-length integer.
-template <typename Iterator>
-std::variant<std::error_code, std::tuple<std::string::size_type, Iterator>>
-decode_vli (Iterator first, Iterator last, std::string::size_type vli,
-            std::string::size_type bias) {
-  static constexpr auto maxint =
-    std::numeric_limits<std::uint_least32_t>::max ();
-  using uri::punycode::decode_error_code;
-  using uri::punycode::details::base;
+constexpr std::size_t clampk (std::size_t const k,
+                              std::size_t const bias) noexcept {
   using uri::punycode::details::tmax;
   using uri::punycode::details::tmin;
+  if (k <= bias) {
+    return tmin;
+  }
+  if (k >= bias + tmax) {
+    return tmax;
+  }
+  return k - bias;
+}
 
-  std::string::size_type w = 1;
+// Decode a generalized variable-length integer.
+template <typename Iterator>
+std::variant<std::error_code, std::tuple<std::size_t, Iterator>> decode_vli (
+  Iterator first, Iterator last, std::size_t vli, std::size_t bias) {
+  static constexpr auto max = std::numeric_limits<std::size_t>::max ();
+  using uri::punycode::decode_error_code;
+  using uri::punycode::details::base;
+
+  auto w = std::size_t{1};
   for (auto k = base;; k += base) {
     if (first == last) {
       return make_error_code (decode_error_code::bad_input);
@@ -55,17 +66,15 @@ decode_vli (Iterator first, Iterator last, std::string::size_type vli,
     if (digit >= base) {
       return make_error_code (decode_error_code::bad_input);
     }
-    if (digit > (maxint - vli) / w) {
+    if (digit > (max - vli) / w) {
       return make_error_code (decode_error_code::overflow);
     }
     vli += digit * w;
-    std::string::size_type const t = k <= bias          ? tmin
-                                     : k >= bias + tmax ? tmax
-                                                        : k - bias;
+    std::size_t const t = clampk (k, bias);
     if (digit < t) {
       break;
     }
-    if (w > maxint / (base - t)) {
+    if (w > max / (base - t)) {
       return make_error_code (decode_error_code::overflow);
     }
     w *= (base - t);
@@ -112,7 +121,7 @@ decode_result decode (std::string_view const& input) {
 
   // The main decoding loop.
   auto n = initial_n;
-  auto i = std::string::size_type{0};
+  auto i = std::size_t{0};
   auto bias = initial_bias;
   // Start just after the last delimiter if any basic code points were
   // copied; start at the beginning otherwise. *in is the next character to be
@@ -132,19 +141,20 @@ decode_result decode (std::string_view const& input) {
       return *err;
     }
     auto const old_vli = i;
+    auto output_length = output.length ();
     std::tie (i, in) = std::get<1> (decode_res);
-    bias = adapt (i - old_vli, output.length () + 1, old_vli == 0);
+    bias = adapt (i - old_vli, output_length + 1, old_vli == 0);
 
     // i was supposed to wrap around from out+1 to 0, incrementing n each time,
     // so we'll fix that now.
-    if (i / (output.length () + 1) > maxint - n) {
+    if (i / (output_length + 1) > maxint - n) {
       return make_error_code (decode_error_code::overflow);
     }
-    n += i / (output.length () + 1);
-    i %= (output.length () + 1);
+    n += i / (output_length + 1);
+    i %= (output_length + 1);
 
     // Insert n into the output at position i.
-    output.insert (i, std::string::size_type{1}, static_cast<char32_t> (n));
+    output.insert (i, std::size_t{1}, static_cast<char32_t> (n));
     ++i;
   }
   return output;
