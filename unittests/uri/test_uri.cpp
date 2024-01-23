@@ -26,6 +26,8 @@
 #include "fuzztest/fuzztest.h"
 #endif
 
+#include "uri/pctencode.hpp"
+
 // to address
 // ~~~~~~~~~~
 #if defined(__cpp_lib_to_address)

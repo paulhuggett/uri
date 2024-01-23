@@ -79,16 +79,14 @@
 #ifndef URI_RULE_HPP
 #define URI_RULE_HPP
 
-#include <algorithm>
-#include <array>
-#include <cassert>
 #include <cctype>
 #include <functional>
-#include <iterator>
 #include <limits>
 #include <optional>
 #include <string_view>
 #include <tuple>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 namespace uri {
@@ -232,12 +230,13 @@ rule rule::star (MatchFunction const match, unsigned const min,
     }
     ++count;
     if (count > max) {
-      break;
+      break;  // Stop after max repeats.
     }
+    // Strip the matched text from the string.
     auto const l = std::get<std::string_view> (*m).length ();
     str.remove_prefix (l);
     length += l;
-
+    // Remember the corresponding acceptor functions.
     auto const& a = std::get<acceptor_container> (*m);
     acc.insert (acc.end (), a.begin (), a.end ());
   }
@@ -263,6 +262,8 @@ rule rule::alternative (MatchFunction match, Rest&&... rest) const {
   return this->alternative (std::forward<Rest> (rest)...);
 }
 
+// is nop
+// ~~~~~~
 template <typename Function>
 constexpr bool rule::is_nop (Function f) const noexcept {
   if constexpr (std::is_pointer_v<Function>) {
@@ -349,37 +350,6 @@ inline auto digit (rule const& r) {
 inline auto hexdig (rule const& r) {
   return r.single_char (
     [] (char const c) { return std::isxdigit (static_cast<int> (c)); });
-}
-
-inline auto commercial_at (rule const& r) {
-  return r.single_char ('@');
-}
-inline auto colon (rule const& r) {
-  return r.single_char (':');
-}
-inline auto hash (rule const& r) {
-  return r.single_char ('#');
-}
-inline auto plus (rule const& r) {
-  return r.single_char ('+');
-}
-inline auto minus (rule const& r) {
-  return r.single_char ('-');
-}
-inline auto solidus (rule const& r) {
-  return r.single_char ('/');
-}
-inline auto question_mark (rule const& r) {
-  return r.single_char ('?');
-}
-inline auto full_stop (rule const& r) {
-  return r.single_char ('.');
-}
-inline auto left_square_bracket (rule const& r) {
-  return r.single_char ('[');
-}
-inline auto right_square_bracket (rule const& r) {
-  return r.single_char (']');
 }
 
 }  // end namespace uri
