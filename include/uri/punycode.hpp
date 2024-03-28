@@ -47,7 +47,7 @@ constexpr auto tmax = 26U;
 constexpr auto skew = 38U;
 constexpr auto initial_bias = std::size_t{72};
 constexpr auto initial_n = std::size_t{0x80};
-constexpr auto delimiter = char{0x2D};
+constexpr auto delimiter = char{0x2D}; // U+002D HYPHEN-MINUS
 
 /// \param c  The code-point to be checked.
 /// \returns true if the \p c represents a "basic" code-point. That is,

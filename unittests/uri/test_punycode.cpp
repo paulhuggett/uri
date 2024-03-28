@@ -313,6 +313,12 @@ TEST (Punycode, BadInput) {
                make_error_code (uri::punycode::decode_error_code::bad_input)});
 }
 
+TEST (Punycode, BadInputInPlainAsciiPart) {
+  EXPECT_EQ (uri::punycode::decode ("\x80-eg"),
+             uri::punycode::decode_result{
+               make_error_code (uri::punycode::decode_error_code::bad_input)});
+}
+
 #if URI_FUZZTEST
 static void EncodeNeverCrashes (std::u32string const& s) {
   std::string actual;
