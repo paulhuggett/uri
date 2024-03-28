@@ -10,7 +10,8 @@
 // See https://github.com/paulhuggett/uri/blob/main/LICENSE for information.
 // SPDX-License-Identifier: MIT
 //===----------------------------------------------------------------------===//
-#include "gtest/gtest.h"
+#include <gmock/gmock.h>
+
 #include "uri/punycode.hpp"
 
 #if URI_FUZZTEST
@@ -312,6 +313,12 @@ TEST (Punycode, BadInput) {
                make_error_code (uri::punycode::decode_error_code::bad_input)});
 }
 
+TEST (Punycode, BadInputInPlainAsciiPart) {
+  EXPECT_EQ (uri::punycode::decode ("\x80-eg"),
+             uri::punycode::decode_result{
+               make_error_code (uri::punycode::decode_error_code::bad_input)});
+}
+
 #if URI_FUZZTEST
 static void EncodeNeverCrashes (std::u32string const& s) {
   std::string actual;
@@ -333,10 +340,22 @@ static auto UnicodeCodePoint () {
 static auto U32String () {
   return fuzztest::ContainerOf<std::u32string> (UnicodeCodePoint ());
 }
-static void RoundTrip (std::u32string const& s) {
+static void EncodeDecodeRoundTrip (std::u32string const& s) {
   std::string encoded;
   uri::punycode::encode (s, std::back_inserter (encoded));
   EXPECT_EQ (uri::punycode::decode (encoded), uri::punycode::decode_result{s});
 }
-FUZZ_TEST (Punycode, RoundTrip).WithDomains (U32String ());
+FUZZ_TEST (Punycode, EncodeDecodeRoundTrip).WithDomains (U32String ());
+#endif  // URI_FUZZTEST
+
+#if URI_FUZZTEST
+static void DecodeEncodeRoundTrip (std::string const& s) {
+  uri::punycode::decode_result const res = uri::punycode::decode (s);
+  if (auto const* const decoded = std::get_if<std::u32string> (&res)) {
+    std::string encoded;
+    uri::punycode::encode (*decoded, std::back_inserter (encoded));
+    EXPECT_THAT (s, testing::StrCaseEq (encoded));
+  }
+}
+FUZZ_TEST (Punycode, DecodeEncodeRoundTrip);
 #endif  // URI_FUZZTEST

@@ -17,21 +17,18 @@
 namespace {
 
 /// \returns The numeric value of a basic code point (for use in representing
-///   integers) in the range 0 to base-1, or base if cp is does not represent a
+///   integers) in the range 0 to base-1, or base if cp does not represent a
 ///   value.
-constexpr unsigned decode_digit (std::uint_least8_t const cp) noexcept {
-  // Digits 0..9 represent values 26..35
-  if (cp - '0' < 10) {
-    return cp - '0' + 26;
+constexpr unsigned decode_digit (std::uint_least8_t cp) noexcept {
+  constexpr auto alphabet_size = 26U;
+  if (cp >= '0' && cp <= '9') {
+    // Digits 0..9 represent values 26..35
+    return cp - ('0' - alphabet_size);
   }
-  // Letters A..Z (either upper- or lower-case represent values 0..25)
-  if (cp - 'A' < 26) {
-    return cp - 'A';
+  if (cp >= 'a') {
+    cp -= 'a' - 'A';  // Convert to upper case.
   }
-  if (cp - 'a' < 26) {
-    return cp - 'a';
-  }
-  return uri::punycode::details::base;
+  return (cp >= 'A' && cp <= 'Z') ? cp - 'A' : uri::punycode::details::base;
 }
 
 constexpr std::size_t clampk (std::size_t const k,
@@ -61,6 +58,7 @@ std::variant<std::error_code, std::tuple<std::size_t, Iterator>> decode_vli (
       return make_error_code (decode_error_code::bad_input);
     }
     auto const digit = decode_digit (static_cast<std::uint_least8_t> (*first));
+    assert (digit <= base);
     ++first;
 
     if (digit >= base) {
@@ -117,7 +115,15 @@ decode_result decode (std::string_view const& input) {
   auto rb = std::find (input.rbegin (), input.rend (), delimiter);
   // NOLINTNEXTLINE(llvm-qualified-auto,readability-qualified-auto)
   auto b = rb == input.rend () ? input.begin () : rb.base () - 1;
-  std::copy (input.begin (), b, std::back_inserter (output));
+  // Copy the plain ASCII part of the string to the output (if any).
+  // NOLINTNEXTLINE(llvm-qualified-auto,readability-qualified-auto)
+  for (auto pos = input.begin (); pos != b; ++pos) {
+    auto const code_point = static_cast<char32_t> (*pos);
+    if (!details::is_basic_code_point (code_point)) {
+      return make_error_code (decode_error_code::bad_input);
+    }
+    output.push_back (code_point);
+  }
 
   // The main decoding loop.
   auto n = initial_n;
