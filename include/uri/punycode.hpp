@@ -23,6 +23,10 @@
 #include <tuple>
 #include <variant>
 
+#if defined(__cpp_lib_ranges) && __cpp_lib_ranges >= 201811L
+#include <ranges>
+#endif
+
 namespace uri::punycode {
 
 enum class decode_error_code : int {
@@ -111,30 +115,38 @@ constexpr std::size_t adapt (std::size_t delta, std::size_t const numpoints,
 
 template <typename Container>
 void sort_and_remove_duplicates (Container& container) {
-  auto const first = container.begin ();
-  auto const last = container.end ();
+  auto const first = std::begin (container);
+  auto const last = std::end (container);
   std::sort (first, last);
   container.erase (std::unique (first, last), last);
 }
 
 }  // namespace details
 
-template <typename OutputIterator>
-OutputIterator encode (std::u32string_view const& input,
+#if defined(__cpp_concepts) && defined(__cpp_lib_concepts)
+template <std::input_iterator InputIterator,
+          std::output_iterator<char> OutputIterator>
+  requires std::is_same_v<std::remove_const_t<typename std::iterator_traits<
+                            InputIterator>::value_type>,
+                          char32_t>
+#else
+template <typename InputIterator, typename OutputIterator>
+#endif
+OutputIterator encode (InputIterator first, InputIterator last,
                        OutputIterator output) {
-  std::u32string nonbasic;
+  std::u32string non_basic;
   auto num_basics = std::size_t{0};
   // Handle the basic code points. Copy them to the output in order followed by
   // a delimiter if any were copied.
-  for (auto cp : input) {
+  std::for_each (first, last, [&] (char32_t const cp) {
     if (details::is_basic_code_point (cp)) {
       *(output++) = static_cast<char> (cp);
       ++num_basics;
     } else {
-      nonbasic += cp;
+      non_basic += cp;
     }
-  }
-  details::sort_and_remove_duplicates (nonbasic);
+  });
+  details::sort_and_remove_duplicates (non_basic);
   auto i = num_basics;
   if (num_basics > 0) {
     *(output++) = details::delimiter;
@@ -142,12 +154,12 @@ OutputIterator encode (std::u32string_view const& input,
   auto n = details::initial_n;
   auto delta = std::size_t{0};
   auto bias = details::initial_bias;
-  for (char32_t const m : nonbasic) {
+  for (char32_t const m : non_basic) {
     assert (m >= n);
     delta += (m - n) * (i + 1);
     n = m;
     // for each code point c in the input (in order)
-    for (char32_t const c : input) {
+    std::for_each (first, last, [&] (char32_t const c) {
       if (c < n) {
         ++delta;  // increment delta (fail on overflow)
       } else if (c == n) {
@@ -157,11 +169,24 @@ OutputIterator encode (std::u32string_view const& input,
         delta = 0U;
         ++i;
       }
-    }
+    });
     ++delta;
     ++n;
   }
   return output;
+}
+
+#if defined(__cpp_concepts) && defined(__cpp_lib_concepts) && defined(__cpp_lib_ranges) && __cpp_lib_ranges >= 201811L
+template <std::ranges::input_range Range,
+          std::output_iterator<char> OutputIterator>
+  requires std::is_same_v<
+    std::remove_const_t<std::ranges::range_value_t<Range>>, char32_t>
+#else
+template <typename Range, typename OutputIterator>
+#endif
+OutputIterator encode (Range const& input, OutputIterator&& output) {
+  return encode (std::begin (input), std::end (input),
+                 std::forward<OutputIterator> (output));
 }
 
 using decode_result = std::variant<std::error_code, std::u32string>;
