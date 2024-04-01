@@ -313,6 +313,7 @@ TEST (Punycode, BadInput) {
                make_error_code (uri::punycode::decode_error_code::bad_input)});
 }
 
+// NOLINTNEXTLINE
 TEST (Punycode, BadInputInPlainAsciiPart) {
   EXPECT_EQ (uri::punycode::decode ("\x80-eg"),
              uri::punycode::decode_result{
@@ -333,29 +334,54 @@ FUZZ_TEST (Punycode, DecodeNeverCrashes);
 #endif  // URI_FUZZTEST
 
 #if URI_FUZZTEST
+namespace {
+
 inline constexpr auto max_code_point = char32_t{0x10FFFF};
-static auto UnicodeCodePoint () {
+auto UnicodeCodePoint () {
   return fuzztest::InRange<char32_t> (0x0000, max_code_point);
 }
-static auto U32String () {
+auto U32String () {
   return fuzztest::ContainerOf<std::u32string> (UnicodeCodePoint ());
 }
-static void EncodeDecodeRoundTrip (std::u32string const& s) {
+void EncodeDecodeRoundTrip (std::u32string const& s) {
   std::string encoded;
   uri::punycode::encode (s, std::back_inserter (encoded));
   EXPECT_EQ (uri::punycode::decode (encoded), uri::punycode::decode_result{s});
 }
+
+}  // end anonymous namespace
+
 FUZZ_TEST (Punycode, EncodeDecodeRoundTrip).WithDomains (U32String ());
 #endif  // URI_FUZZTEST
 
 #if URI_FUZZTEST
-static void DecodeEncodeRoundTrip (std::string const& s) {
-  uri::punycode::decode_result const res = uri::punycode::decode (s);
+namespace {
+
+std::string::const_iterator ascii_part_end (std::string const& encoded) {
+  // NOLINTNEXTLINE(llvm-qualified-auto,readability-qualified-auto)
+  auto const rend = std::find (encoded.rbegin (), encoded.rend (), '-');
+  // NOLINTNEXTLINE(llvm-qualified-auto,readability-qualified-auto)
+  return rend == encoded.rend () ? encoded.begin () : rend.base () - 1;
+}
+
+void DecodeEncodeRoundTrip (std::string const& original) {
+  uri::punycode::decode_result const res = uri::punycode::decode (original);
   if (auto const* const decoded = std::get_if<std::u32string> (&res)) {
     std::string encoded;
     uri::punycode::encode (*decoded, std::back_inserter (encoded));
-    EXPECT_THAT (s, testing::StrCaseEq (encoded));
+
+    auto const ascii_end = ascii_part_end (original);
+    ASSERT_EQ (original.size (), encoded.size ());
+    EXPECT_TRUE (
+      std::equal (std::begin (original), ascii_end, std::begin (encoded)));
+    EXPECT_TRUE ((std::equal (
+      ascii_end, std::end (original),
+      std::begin (encoded) + std::distance (std::begin (original), ascii_end),
+      [] (char a, char b) { return std::tolower (a) == std::tolower (b); })));
   }
 }
+
+}  // end anonymous namespace
+
 FUZZ_TEST (Punycode, DecodeEncodeRoundTrip);
 #endif  // URI_FUZZTEST

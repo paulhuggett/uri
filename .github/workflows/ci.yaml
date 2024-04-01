@@ -14,13 +14,13 @@ jobs:
           - name: macOS-13/Xcode/Debug
             build_type: Debug
             generator: Xcode
-            options:
+            options: -D URI_CXX17=No
             os: macos-13
 
           - name: macOS-13/Xcode/Release
             build_type: Release
             generator: Xcode
-            options:
+            options: -D URI_CXX17=No
             os: macos-13
 
           # Linux builds
@@ -28,47 +28,47 @@ jobs:
           - name: Ubuntu-20.04/clang-15/Debug/C++17
             apt_install: clang-15 cmake libc++-15-dev libc++abi-15-dev ninja-build
             build_type: Debug
-            cxx_compiler: -DCMAKE_CXX_COMPILER=clang++-15 -DCMAKE_C_COMPILER=clang-15
+            cxx_compiler: -D CMAKE_CXX_COMPILER=clang++-15 -D CMAKE_C_COMPILER=clang-15
             generator: Ninja
-            options: -DURI_CXX17=Yes -DURI_LIBCXX=Yes -DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=gold
+            options: -D URI_CXX17=Yes -D URI_LIBCXX=Yes -D CMAKE_EXE_LINKER_FLAGS=-fuse-ld=gold
             os: ubuntu-22.04
 
           - name: Ubuntu-22.04/gcc-11/Debug
             apt_install: cmake ninja-build
             build_type: Debug
             generator: Ninja
-            options:
+            options: -D URI_CXX17=No
             os: ubuntu-22.04
 
           - name: Ubuntu-22.04/gcc-11/Release
             apt_install: cmake ninja-build
             build_type: Release
             generator: Ninja
-            options:
+            options: -D URI_CXX17=No
             os: ubuntu-22.04
 
           - name: Ubuntu-22.04/clang-15/Debug
             apt_install: clang-15 cmake libc++-15-dev libc++abi-15-dev ninja-build
             build_type: Debug
-            cxx_compiler: -DCMAKE_CXX_COMPILER=clang++-15 -DCMAKE_C_COMPILER=clang-15
+            cxx_compiler: -D CMAKE_CXX_COMPILER=clang++-15 -D CMAKE_C_COMPILER=clang-15
             generator: Ninja
-            options: -DURI_LIBCXX=Yes -DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=gold
+            options: -D URI_CXX17=No -D URI_LIBCXX=Yes -D CMAKE_EXE_LINKER_FLAGS=-fuse-ld=gold
             os: ubuntu-22.04
 
           - name: Ubuntu-22.04/clang-15/Release
             apt_install: clang-15 cmake libc++-15-dev libc++abi-15-dev ninja-build
             build_type: Release
-            cxx_compiler: -DCMAKE_CXX_COMPILER=clang++-15 -DCMAKE_C_COMPILER=clang-15
+            cxx_compiler: -D CMAKE_CXX_COMPILER=clang++-15 -D CMAKE_C_COMPILER=clang-15
             generator: Ninja
-            options: -DURI_LIBCXX=Yes -DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=gold
+            options: -D URI_CXX17=No -D URI_LIBCXX=Yes -D CMAKE_EXE_LINKER_FLAGS=-fuse-ld=gold
             os: ubuntu-22.04
 
           - name: Ubuntu-22.04/clang-15/Release/C++17
             apt_install: clang-15 cmake libc++-15-dev libc++abi-15-dev ninja-build
             build_type: Release
-            cxx_compiler: -DCMAKE_CXX_COMPILER=clang++-15 -DCMAKE_C_COMPILER=clang-15
+            cxx_compiler: -D CMAKE_CXX_COMPILER=clang++-15 -D CMAKE_C_COMPILER=clang-15
             generator: Ninja
-            options: -DURI_CXX17=Yes -DURI_LIBCXX=Yes -DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=gold
+            options: -D URI_CXX17=Yes -D URI_LIBCXX=Yes -D CMAKE_EXE_LINKER_FLAGS=-fuse-ld=gold
             os: ubuntu-22.04
 
           # Windows builds
@@ -76,13 +76,13 @@ jobs:
           - name: Windows-latest/VS2022/Debug
             build_type: Debug
             generator: Visual Studio 17 2022
-            options:
+            options: -D URI_CXX17=No
             os: windows-latest
 
           - name: Windows-latest/VS2022/Release
             build_type: Release
             generator: Visual Studio 17 2022
-            options:
+            options: -D URI_CXX17=No
             os: windows-latest
 
           - name: Windows-latest/VS2022/Debug/C++17

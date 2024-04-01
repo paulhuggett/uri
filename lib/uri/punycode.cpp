@@ -13,6 +13,7 @@
 #include "uri/punycode.hpp"
 
 #include <cstdint>
+#include <limits>
 
 namespace {
 
