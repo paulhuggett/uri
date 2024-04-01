@@ -50,4 +50,4 @@ jobs:
 
       - name: Fuzz
         run: |
-          "$BUILD_DIR/unittests/uri/unittest" --fuzz_for 10s
+          "$BUILD_DIR/unittests/uri/unittest" --fuzz_for 30s

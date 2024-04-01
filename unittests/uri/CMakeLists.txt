@@ -17,9 +17,6 @@ add_executable (unittest
   test_rule.cpp
   test_uri.cpp
 )
-target_link_libraries (unittest PUBLIC uri)
-
-setup_target (unittest)
 target_compile_options (
   unittest
   PRIVATE
@@ -31,6 +28,8 @@ target_compile_options (
     $<$<CXX_COMPILER_ID:MSVC>:
       -wd4702>
 )
+target_link_libraries (unittest PUBLIC uri)
+setup_target (unittest PEDANTIC $<NOT:$<BOOL:${URI_FUZZTEST}>>)
 add_test(NAME unittest COMMAND unittest)
 
 if (URI_FUZZTEST)
