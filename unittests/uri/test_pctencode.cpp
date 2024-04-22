@@ -137,6 +137,7 @@ static auto AnyEncodeSet () {
      uri::pctencode_set::userinfo, uri::pctencode_set::component,
      uri::pctencode_set::form_urlencoded});
 }
+// NOLINTNEXTLINE
 FUZZ_TEST (PctEncodeFuzz, EncodeNeverCrashes)
   .WithDomains (fuzztest::String (), AnyEncodeSet ());
 #endif  // URI_FUZZTEST
@@ -153,6 +154,7 @@ static void RoundTrip (std::string const& s, uri::pctencode_set encodeset) {
 
   EXPECT_THAT (out, testing::StrEq (s));
 }
+// NOLINTNEXTLINE
 FUZZ_TEST (PctEncodeFuzz, RoundTrip)
   .WithDomains (fuzztest::String (), AnyEncodeSet ());
 #endif  // URI_FUZZTEST

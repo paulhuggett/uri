@@ -1,0 +1,34 @@
+//===- lib/uri/parts.cpp --------------------------------------------------===//
+//*                   _        *
+//*  _ __   __ _ _ __| |_ ___  *
+//* | '_ \ / _` | '__| __/ __| *
+//* | |_) | (_| | |  | |_\__ \ *
+//* | .__/ \__,_|_|   \__|___/ *
+//* |_|                        *
+//===----------------------------------------------------------------------===//
+// Distributed under the MIT License.
+// See https://github.com/paulhuggett/uri/blob/main/LICENSE for information.
+// SPDX-License-Identifier: MIT
+//===----------------------------------------------------------------------===//
+#include "uri/parts.hpp"
+
+#include <concepts>
+#include <iterator>
+
+#include "uri/icubaby.hpp"
+#include "uri/pctencode.hpp"
+
+namespace uri::details {
+
+std::size_t pct_encoded_size (std::string_view const str,
+                              pctencode_set const encodeset) {
+  if (!uri::needs_pctencode (str, encodeset)) {
+    return std::size_t{0};
+  }
+  ro_sink_container<char> sink;
+  uri::pctencode (std::begin (str), std::end (str), std::back_inserter (sink),
+                  encodeset);
+  return sink.size ();
+}
+
+}  // end namespace uri::details

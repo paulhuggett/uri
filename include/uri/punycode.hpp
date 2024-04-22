@@ -15,8 +15,10 @@
 
 #include <algorithm>
 #include <cassert>
+#include <concepts>
 #include <iomanip>
 #include <iostream>
+#include <iterator>
 #include <numeric>
 #include <string_view>
 #include <system_error>
@@ -26,6 +28,8 @@
 #if defined(__cpp_lib_ranges) && __cpp_lib_ranges >= 201811L
 #include <ranges>
 #endif
+
+#include "uri/portab.hpp"
 
 namespace uri::punycode {
 
@@ -51,7 +55,7 @@ constexpr auto tmax = 26U;
 constexpr auto skew = 38U;
 constexpr auto initial_bias = std::size_t{72};
 constexpr auto initial_n = std::size_t{0x80};
-constexpr auto delimiter = char{0x2D}; // U+002D HYPHEN-MINUS
+constexpr auto delimiter = '-';  // U+002D HYPHEN-MINUS
 
 /// \param c  The code-point to be checked.
 /// \returns true if the \p c represents a "basic" code-point. That is,
@@ -123,29 +127,27 @@ void sort_and_remove_duplicates (Container& container) {
 
 }  // namespace details
 
-#if defined(__cpp_concepts) && defined(__cpp_lib_concepts)
-template <std::input_iterator InputIterator,
+template <std::ranges::forward_range Range,
           std::output_iterator<char> OutputIterator>
-  requires std::is_same_v<std::remove_const_t<typename std::iterator_traits<
-                            InputIterator>::value_type>,
+  requires std::is_same_v<std::remove_cv_t<std::ranges::range_value_t<Range>>,
                           char32_t>
-#else
-template <typename InputIterator, typename OutputIterator>
-#endif
-OutputIterator encode (InputIterator first, InputIterator last,
-                       OutputIterator output) {
+std::tuple<std::ranges::iterator_t<Range>, OutputIterator, bool> encode (
+  Range&& range, bool allow_plain, OutputIterator output) {
   std::u32string non_basic;
   auto num_basics = std::size_t{0};
   // Handle the basic code points. Copy them to the output in order followed by
   // a delimiter if any were copied.
-  std::for_each (first, last, [&] (char32_t const cp) {
-    if (details::is_basic_code_point (cp)) {
-      *(output++) = static_cast<char> (cp);
-      ++num_basics;
-    } else {
-      non_basic += cp;
-    }
-  });
+  auto in = std::ranges::for_each (range, [&] (char32_t const cp) {
+              if (details::is_basic_code_point (cp)) {
+                *(output++) = static_cast<char> (cp);
+                ++num_basics;
+              } else {
+                non_basic += cp;
+              }
+            }).in;
+  if (allow_plain && non_basic.empty ()) {
+    return std::make_tuple (std::move (in), std::move (output), false);
+  }
   details::sort_and_remove_duplicates (non_basic);
   auto i = num_basics;
   if (num_basics > 0) {
@@ -159,7 +161,7 @@ OutputIterator encode (InputIterator first, InputIterator last,
     delta += (m - n) * (i + 1);
     n = m;
     // for each code point c in the input (in order)
-    std::for_each (first, last, [&] (char32_t const c) {
+    std::ranges::for_each (range, [&] (char32_t const c) {
       if (c < n) {
         ++delta;  // increment delta (fail on overflow)
       } else if (c == n) {
@@ -173,24 +175,153 @@ OutputIterator encode (InputIterator first, InputIterator last,
     ++delta;
     ++n;
   }
+  return std::make_tuple (std::move (in), std::move (output),
+                          !non_basic.empty ());
+}
+
+namespace details {
+
+/// \returns The numeric value of a basic code point (for use in representing
+///   integers) in the range 0 to base-1, or base if cp does not represent a
+///   value.
+constexpr unsigned decode_digit (std::uint_least8_t cp) noexcept {
+  constexpr auto alphabet_size = 26U;
+  if (cp >= '0' && cp <= '9') {
+    // Digits 0..9 represent values 26..35
+    return cp - ('0' - alphabet_size);
+  }
+  if (cp >= 'a') {
+    cp -= 'a' - 'A';  // Convert to upper case.
+  }
+  return (cp >= 'A' && cp <= 'Z') ? cp - 'A' : uri::punycode::details::base;
+}
+
+constexpr std::size_t clampk (std::size_t const k,
+                              std::size_t const bias) noexcept {
+  using uri::punycode::details::tmax;
+  using uri::punycode::details::tmin;
+  if (k <= bias) {
+    return tmin;
+  }
+  if (k >= bias + tmax) {
+    return tmax;
+  }
+  return k - bias;
+}
+
+// Decode a generalized variable-length integer.
+template <typename Iterator, typename Sentinel>
+std::variant<std::error_code, std::tuple<std::size_t, Iterator>> decode_vli (
+  Iterator first, Sentinel last, std::size_t vli, std::size_t bias) {
+  static constexpr auto max = std::numeric_limits<std::size_t>::max ();
+  using uri::punycode::decode_error_code;
+  using uri::punycode::details::base;
+
+  auto w = std::size_t{1};
+  for (auto k = base;; k += base) {
+    if (first == last) {
+      return make_error_code (decode_error_code::bad_input);
+    }
+    auto const digit = decode_digit (static_cast<std::uint_least8_t> (*first));
+    assert (digit <= base);
+    ++first;
+
+    if (digit >= base) {
+      return make_error_code (decode_error_code::bad_input);
+    }
+    if (digit > (max - vli) / w) {
+      return make_error_code (decode_error_code::overflow);
+    }
+    vli += digit * w;
+    std::size_t const t = clampk (k, bias);
+    if (digit < t) {
+      break;
+    }
+    if (w > max / (base - t)) {
+      return make_error_code (decode_error_code::overflow);
+    }
+    w *= (base - t);
+  }
+  return std::make_tuple (vli, first);
+}
+
+}  // end namespace details
+
+using decode_result = std::variant<std::error_code, std::u32string>;
+
+template <std::bidirectional_iterator I, std::sentinel_for<I> S>
+decode_result decode (I first, S last) {
+  std::u32string output;
+  static constexpr auto maxint =
+    std::numeric_limits<std::uint_least32_t>::max ();
+  using details::adapt;
+  using details::delimiter;
+  using details::initial_bias;
+  using details::initial_n;
+
+  // Find the end of the literal portion (if there is one) by scanning for the
+  // last delimiter.
+  auto rb = std::find (std::make_reverse_iterator (last),
+                       std::make_reverse_iterator (first), delimiter);
+  // NOLINTNEXTLINE(llvm-qualified-auto,readability-qualified-auto)
+  auto b = rb == std::make_reverse_iterator (first) ? first : rb.base () - 1;
+  // Copy the plain ASCII part of the string to the output (if any).
+  // NOLINTNEXTLINE(llvm-qualified-auto,readability-qualified-auto)
+  for (auto pos = first; pos != b; ++pos) {
+    auto const code_point = static_cast<char32_t> (*pos);
+    if (!details::is_basic_code_point (code_point)) {
+      return make_error_code (decode_error_code::bad_input);
+    }
+    output.push_back (code_point);
+  }
+
+  // The main decoding loop.
+  auto n = initial_n;
+  auto i = std::size_t{0};
+  auto bias = initial_bias;
+  // Start just after the last delimiter if any basic code points were
+  // copied; start at the beginning otherwise. *in is the next character to be
+  // consumed.
+  // NOLINTNEXTLINE(llvm-qualified-auto,readability-qualified-auto)
+  auto in = b != first ? std::next (b) : first;
+  while (in != last) {
+    // Decode a generalized variable-length integer into delta, which gets added
+    // to i. The overflow checking is easier if we increase i as we go, then
+    // subtract off its starting value at the end to obtain delta.
+    auto const decode_res = details::decode_vli (in, last, i, bias);
+    static_assert (
+      std::is_same_v<std::error_code,
+                     std::remove_const_t<
+                       std::variant_alternative_t<0, decltype (decode_res)>>>);
+    if (auto const* err = std::get_if<std::error_code> (&decode_res)) {
+      return *err;
+    }
+    auto const old_vli = i;
+    auto output_length = output.length ();
+    std::tie (i, in) = std::get<1> (decode_res);
+    bias = adapt (i - old_vli, output_length + 1, old_vli == 0);
+
+    // i was supposed to wrap around from out+1 to 0, incrementing n each time,
+    // so we'll fix that now.
+    if (i / (output_length + 1) > maxint - n) {
+      return make_error_code (decode_error_code::overflow);
+    }
+    n += i / (output_length + 1);
+    i %= (output_length + 1);
+
+    // Insert n into the output at position i.
+    output.insert (i, std::size_t{1}, static_cast<char32_t> (n));
+    ++i;
+  }
   return output;
 }
 
-#if defined(__cpp_concepts) && defined(__cpp_lib_concepts) && defined(__cpp_lib_ranges) && __cpp_lib_ranges >= 201811L
-template <std::ranges::input_range Range,
-          std::output_iterator<char> OutputIterator>
-  requires std::is_same_v<
-    std::remove_const_t<std::ranges::range_value_t<Range>>, char32_t>
-#else
-template <typename Range, typename OutputIterator>
-#endif
-OutputIterator encode (Range const& input, OutputIterator&& output) {
-  return encode (std::begin (input), std::end (input),
-                 std::forward<OutputIterator> (output));
+template <std::ranges::bidirectional_range Range>
+  requires std::is_same_v<std::remove_cv_t<std::ranges::range_value_t<Range>>,
+                          char>
+decode_result decode (Range&& input) {
+  return decode (std::ranges::begin (input), std::ranges::end (input));
 }
-
-using decode_result = std::variant<std::error_code, std::u32string>;
-decode_result decode (std::string_view const& input);
 
 }  // end namespace uri::punycode
 
