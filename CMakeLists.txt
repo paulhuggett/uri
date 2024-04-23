@@ -12,9 +12,9 @@
 #===----------------------------------------------------------------------===//
 cmake_minimum_required (VERSION 3.19)
 project (uri CXX)
+
 list (APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-option (URI_CXX17 "Use C++17 (rather than C++20)" No)
 option (URI_FUZZTEST "Enable FuzzTest")
 option (URI_LIBCXX "Use libc++ rather than libstdc++")
 option (URI_WERROR "Compiler warnings are errors")
