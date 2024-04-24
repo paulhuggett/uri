@@ -190,6 +190,40 @@ TEST (Parts, EncodeDecode) {
   EXPECT_EQ (*decoded.fragment, *original.fragment);
 }
 
+// NOLINTNEXTLINE
+TEST (Parts, EncodeDecodePunycodeTLD) {
+  uri::parts original;
+  original.scheme = "http"sv;
+  // CYRILLIC SMALL LETTER IO
+  // CYRILLIC SMALL LETTER ZHE
+  // CYRILLIC SMALL LETTER I
+  // CYRILLIC SMALL LETTER KA
+  //
+  // CYRILLIC SMALL LETTER ER
+  // CYRILLIC SMALL LETTER EF
+  original.authority =
+    (struct uri::parts::authority){std::nullopt, "ёжик.рф"sv, std::nullopt};
+
+  std::vector<char> encode_store;
+  uri::parts const encoded = uri::encode (encode_store, original);
+  EXPECT_TRUE (encoded.valid ());
+
+  std::vector<char> decode_store;
+  std::variant<std::error_code, uri::parts> const decode_result =
+    uri::decode (decode_store, encoded);
+  ASSERT_TRUE (std::holds_alternative<uri::parts> (decode_result));
+
+  auto const& decoded = std::get<uri::parts> (decode_result);
+  EXPECT_EQ (decoded.scheme, original.scheme);
+  ASSERT_TRUE (decoded.authority.has_value ());
+  EXPECT_EQ (decoded.authority->userinfo, original.authority->userinfo);
+  EXPECT_EQ (decoded.authority->host, original.authority->host);
+  EXPECT_EQ (decoded.authority->port, original.authority->port);
+  EXPECT_EQ (decoded.path.absolute, original.path.absolute);
+  ASSERT_FALSE (decoded.query.has_value ());
+  ASSERT_FALSE (decoded.fragment.has_value ());
+}
+
 #if URI_FUZZTEST
 
 using opt_authority = std::optional<struct uri::parts::authority>;

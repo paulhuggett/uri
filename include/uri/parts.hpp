@@ -187,39 +187,32 @@ puny_decoded (Range&& range, OutputIterator out) {
       any_encoded = true;
       std::ranges::advance (first, punycode_prefix.size ());
 
-      auto const component = subrange{first, std::ranges::end (view)};
-      std::string str2;
-      std::ranges::copy (component, std::back_inserter (str2));
+      std::string label;
+      first = std::ranges::copy (subrange{first, std::ranges::end (view)},
+                                 std::back_inserter (label))
+                .in;
 
-      auto const decode_res = punycode::decode (str2);
-      if (auto const* erc = std::get_if<std::error_code> (&decode_res)) {
+      auto const decode_result = punycode::decode (label);
+      if (auto const* erc = std::get_if<std::error_code> (&decode_result)) {
         return *erc;
       }
-      auto const& [_, out_] =
-        std::ranges::copy (std::get<std::u32string> (decode_res) |
-                             icubaby::views::transcode<char32_t, char8_t>,
-                           out);
-      out = std::move (out_);
-
-      std::ranges::advance (
-        first, static_cast<std::iter_difference_t<decltype (first)>> (
-                 str2.size () + 1U));
-      if (first == last) {
-        break;
-      }
+      out = std::ranges::copy (std::get<std::u32string> (decode_result) |
+                                 icubaby::views::transcode<char32_t, char8_t>,
+                               out)
+              .out;
     } else {
-      auto const& [first_, out_] = std::ranges::copy (view, out);
-      first = std::move (first_);
-      out = std::move (out_);
-      if (first == last) {
-        break;
-      }
-      first = std::next (first);
+      auto const& copy_result = std::ranges::copy (view, out);
+      first = std::move (copy_result.in);
+      out = std::move (copy_result.out);
     }
+
+    if (first == last) {
+      break;
+    }
+    first = std::next (first);
     view = subrange{first, last} | find_dot;
     *(out++) = '.';
   }
-
   return puny_decoded_result{out, any_encoded};
 }
 
