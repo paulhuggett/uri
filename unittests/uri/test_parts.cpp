@@ -23,14 +23,22 @@
 using namespace std::string_view_literals;
 
 // NOLINTNEXTLINE
-TEST (Puny, EncodedSizeNoNonAscii) {
+TEST (Parts, PunyEncodedSizeNoNonAscii) {
   EXPECT_EQ (uri::details::puny_encoded_size (
                u8"a.b"sv | icubaby::views::transcode<char8_t, char32_t>),
              std::size_t{0});
 }
 
 // NOLINTNEXTLINE
-TEST (Puny, EncodedThreeParts) {
+TEST (Parts, PunyDecodedSizeNoNonAscii) {
+  std::variant<std::error_code, std::size_t> const puny_decoded_result =
+    uri::details::puny_decoded_size ("a.b"sv);
+  ASSERT_TRUE (std::holds_alternative<std::size_t> (puny_decoded_result));
+  EXPECT_EQ (std::get<std::size_t> (puny_decoded_result), std::size_t{0});
+}
+
+// NOLINTNEXTLINE
+TEST (Parts, PunyEncodedThreeParts) {
   std::string output;
   uri::details::puny_encoded (
     u8"aaa.bbb.ccc"sv | icubaby::views::transcode<char8_t, char32_t>,
@@ -39,7 +47,7 @@ TEST (Puny, EncodedThreeParts) {
 }
 
 // NOLINTNEXTLINE
-TEST (Puny, EncodedMuchenDe) {
+TEST (Parts, PunyEncodedMuchenDe) {
   std::string output;
   uri::details::puny_encoded (
     u8"M\xC3\xBCnchen.de"sv | icubaby::views::transcode<char8_t, char32_t>,
@@ -48,7 +56,7 @@ TEST (Puny, EncodedMuchenDe) {
 }
 
 // NOLINTNEXTLINE
-TEST (Puny, EncodedMuchenDotGrinningFace) {
+TEST (Parts, PunyEncodedMuchenDotGrinningFace) {
   std::string output;
   // M<U+00FC LATIN SMALL LETTER U WITH DIAERESIS>nchen.<U+03C0 greek small
   // letter pi>
@@ -59,7 +67,7 @@ TEST (Puny, EncodedMuchenDotGrinningFace) {
 }
 
 // NOLINTNEXTLINE
-TEST (Puny, EncodedSizeMuchenDe) {
+TEST (Parts, PunyEncodedSizeMuchenDe) {
   EXPECT_EQ (
     uri::details::puny_encoded_size (
       u8"M\xC3\xBCnchen.de"sv | icubaby::views::transcode<char8_t, char32_t>),
@@ -67,7 +75,7 @@ TEST (Puny, EncodedSizeMuchenDe) {
 }
 
 // NOLINTNEXTLINE
-TEST (Puny, EncodedMunchenGrinningFace) {
+TEST (Parts, PunyEncodedMunchenGrinningFace) {
   uri::parts p;
   p.authority = (struct uri::parts::authority){
     std::nullopt, "M\xC3\xBCnchen.\xF0\x9F\x98\x80"sv, std::nullopt};
@@ -77,12 +85,17 @@ TEST (Puny, EncodedMunchenGrinningFace) {
 }
 
 // NOLINTNEXTLINE
-TEST (Puny, Decoded) {
+TEST (Parts, PunyDecoded) {
   std::u32string output;
+  auto out = std::back_inserter (output);
   auto const input = std::string_view{"aaa.bbb.ccc"};
-  std::error_code const erc =
-    uri::details::puny_decoded (input, std::back_inserter (output));
-  EXPECT_FALSE (erc) << "Error was: " << erc.message ();
+
+  auto const puny_decoded_result = uri::details::puny_decoded (input, out);
+
+  using result_type = uri::details::puny_decoded_result<decltype (out)>;
+  ASSERT_TRUE (std::holds_alternative<result_type> (puny_decoded_result));
+  auto const& result = std::get<result_type> (puny_decoded_result);
+  EXPECT_FALSE (result.any_encoded);
   EXPECT_THAT (
     output, testing::ElementsAre (char32_t{'a'}, char32_t{'a'}, char32_t{'a'},
                                   char32_t{'.'}, char32_t{'b'}, char32_t{'b'},
@@ -91,22 +104,94 @@ TEST (Puny, Decoded) {
 }
 
 // NOLINTNEXTLINE
-TEST (Puny, DecodedMuchenDe) {
-  std::u32string output;
+TEST (Parts, PunyDecodedMuchenDe) {
+  std::vector<char8_t> output;
+  auto out = std::back_inserter (output);
   auto const input = std::string_view{"xn--Mnchen-3ya.de"};
-  std::error_code const erc =
-    uri::details::puny_decoded (input, std::back_inserter (output));
-  EXPECT_FALSE (erc) << "Error was: " << erc.message ();
+  auto const puny_decoded_result = uri::details::puny_decoded (input, out);
 
-  static constexpr auto latin_small_letter_u_with_diaresis = char32_t{0x00FC};
-  EXPECT_THAT (
-    output, testing::ElementsAre (
-              char32_t{'M'}, latin_small_letter_u_with_diaresis, char32_t{'n'},
-              char32_t{'c'}, char32_t{'h'}, char32_t{'e'}, char32_t{'n'},
-              char32_t{'.'}, char32_t{'d'}, char32_t{'e'}));
+  using result_type = uri::details::puny_decoded_result<decltype (out)>;
+  ASSERT_TRUE (std::holds_alternative<result_type> (puny_decoded_result));
+  auto const& result = std::get<result_type> (puny_decoded_result);
+  EXPECT_TRUE (result.any_encoded);
+
+  // latin-small-letter-u-with-diaresis is U+00FC (C3 BC)
+  EXPECT_THAT (output,
+               testing::ElementsAre (
+                 'M', static_cast<char8_t> (0xC3), static_cast<char8_t> (0xBC),
+                 'n', char8_t{'c'}, char8_t{'h'}, char8_t{'e'}, char8_t{'n'},
+                 char8_t{'.'}, char8_t{'d'}, char8_t{'e'}));
+}
+
+// NOLINTNEXTLINE
+TEST (Parts, AllSetButNothingToEncode) {
+  uri::parts input;
+  input.scheme = "https"sv;
+  input.authority =
+    (struct uri::parts::authority){"user"sv, "host"sv, "1234"sv};
+  input.path.absolute = true;
+  input.path.segments = std::vector<std::string_view>{"a"sv, "b"sv};
+  input.query = "query"sv;
+  input.fragment = "fragment"sv;
+  ASSERT_TRUE (input.valid ());
+
+  std::vector<char> store;
+  uri::parts const output = uri::encode (store, input);
+
+  EXPECT_TRUE (output.valid ());
+  EXPECT_EQ (store.size (), 0U)
+    << "Nothing to encode so store size should be 0";
+  EXPECT_EQ (output.scheme, input.scheme);
+  ASSERT_TRUE (output.authority.has_value ());
+  EXPECT_EQ (output.authority->userinfo, input.authority->userinfo);
+  EXPECT_EQ (output.authority->host, input.authority->host);
+  EXPECT_EQ (output.authority->port, input.authority->port);
+  EXPECT_EQ (output.path.absolute, input.path.absolute);
+  EXPECT_THAT (output.path.segments,
+               testing::ContainerEq (input.path.segments));
+  ASSERT_TRUE (output.query.has_value ());
+  EXPECT_EQ (*output.query, *input.query);
+  ASSERT_TRUE (output.fragment.has_value ());
+  EXPECT_EQ (*output.fragment, *input.fragment);
+}
+
+// NOLINTNEXTLINE
+TEST (Parts, EncodeDecode) {
+  uri::parts original;
+  original.scheme = "https"sv;
+  original.authority =
+    (struct uri::parts::authority){"user"sv, "M\xC3\xBCnchen.de"sv, "1234"sv};
+  original.path.absolute = true;
+  original.path.segments = std::vector<std::string_view>{"~\xC2\xA1"sv};
+  original.query = "a%b"sv;
+  original.fragment = "c%d"sv;
+
+  std::vector<char> encode_store;
+  uri::parts const encoded = uri::encode (encode_store, original);
+  EXPECT_TRUE (encoded.valid ());
+
+  std::vector<char> decode_store;
+  std::variant<std::error_code, uri::parts> const decode_result =
+    uri::decode (decode_store, encoded);
+  ASSERT_TRUE (std::holds_alternative<uri::parts> (decode_result));
+
+  auto const& decoded = std::get<uri::parts> (decode_result);
+  EXPECT_EQ (decoded.scheme, original.scheme);
+  ASSERT_TRUE (decoded.authority.has_value ());
+  EXPECT_EQ (decoded.authority->userinfo, original.authority->userinfo);
+  EXPECT_EQ (decoded.authority->host, original.authority->host);
+  EXPECT_EQ (decoded.authority->port, original.authority->port);
+  EXPECT_EQ (decoded.path.absolute, original.path.absolute);
+  EXPECT_THAT (decoded.path.segments,
+               testing::ContainerEq (original.path.segments));
+  ASSERT_TRUE (decoded.query.has_value ());
+  EXPECT_EQ (*decoded.query, *original.query);
+  ASSERT_TRUE (decoded.fragment.has_value ());
+  EXPECT_EQ (*decoded.fragment, *original.fragment);
 }
 
 #if URI_FUZZTEST
+
 using opt_authority = std::optional<struct uri::parts::authority>;
 
 struct parts_without_authority {
@@ -120,15 +205,49 @@ struct parts_without_authority {
     return uri::parts{scheme, std::move (auth), path, query, fragment};
   }
 };
+
 static void EncodeAndComposeValidAlwaysAgree (
   parts_without_authority const& base, opt_authority&& auth) {
   std::vector<char> store;
-  uri::parts const p = uri::encode (store, base.as_parts (std::move (auth)));
-  if (p.valid ()) {
+  if (uri::parts const p =
+        uri::encode (store, base.as_parts (std::move (auth)));
+      p.valid ()) {
     std::string const str = uri::compose (p);
     EXPECT_TRUE (uri::split (str).has_value ());
   }
 }
 // NOLINTNEXTLINE
-FUZZ_TEST (Puny, EncodeAndComposeValidAlwaysAgree);
+FUZZ_TEST (Parts, EncodeAndComposeValidAlwaysAgree);
+
+static void EncodeDecodeRoundTrip (parts_without_authority const& base,
+                                   opt_authority&& auth) {
+  if (uri::parts const original = base.as_parts (std::move (auth));
+      original.valid ()) {
+    std::vector<char> encode_store;
+    uri::parts const encoded = uri::encode (encode_store, original);
+    EXPECT_TRUE (encoded.valid ());
+
+    std::vector<char> decode_store;
+    std::variant<std::error_code, uri::parts> const decode_result =
+      uri::decode (decode_store, encoded);
+    ASSERT_TRUE (std::holds_alternative<uri::parts> (decode_result));
+
+    auto const& decoded = std::get<uri::parts> (decode_result);
+    EXPECT_EQ (decoded.scheme, original.scheme);
+    ASSERT_EQ (decoded.authority, original.authority);
+    if (decoded.authority && original.authority) {
+      EXPECT_EQ (decoded.authority->userinfo, original.authority->userinfo);
+      EXPECT_EQ (decoded.authority->host, original.authority->host);
+      EXPECT_EQ (decoded.authority->port, original.authority->port);
+    }
+    EXPECT_EQ (decoded.path.absolute, original.path.absolute);
+    EXPECT_THAT (decoded.path.segments,
+                 testing::ContainerEq (original.path.segments));
+    EXPECT_EQ (decoded.query, original.query);
+    EXPECT_EQ (decoded.fragment, original.fragment);
+  }
+}
+// NOLINTNEXTLINE
+FUZZ_TEST (Parts, EncodeDecodeRoundTrip);
+
 #endif  // URI_FUZZTEST

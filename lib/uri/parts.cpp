@@ -16,6 +16,7 @@
 #include <iterator>
 
 #include "uri/icubaby.hpp"
+#include "uri/pctdecode.hpp"
 #include "uri/pctencode.hpp"
 
 namespace uri::details {
@@ -29,6 +30,13 @@ std::size_t pct_encoded_size (std::string_view const str,
   uri::pctencode (std::begin (str), std::end (str), std::back_inserter (sink),
                   encodeset);
   return sink.size ();
+}
+
+std::size_t pct_decoded_size (std::string_view const str) {
+  if (!uri::needs_pctdecode (str.begin (), str.end ())) {
+    return std::size_t{0};
+  }
+  return uri::pctdecode (str).size ();
 }
 
 }  // end namespace uri::details

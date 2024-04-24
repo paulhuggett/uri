@@ -13,14 +13,26 @@
 #ifndef URI_PARTS_HPP
 #define URI_PARTS_HPP
 
+#include <bitset>
+
 #include "uri/icubaby.hpp"
+#include "uri/pctdecode.hpp"
 #include "uri/pctencode.hpp"
 #include "uri/punycode.hpp"
 #include "uri/uri.hpp"
 
 namespace uri {
 
-enum class parts_field { scheme, userinfo, host, port, path, query, fragment };
+enum class parts_field : std::uint_least8_t {
+  scheme,
+  userinfo,
+  host,
+  port,
+  path,
+  query,
+  fragment,
+  last
+};
 
 constexpr pctencode_set pctencode_set_from_parts_field (
   parts_field const field) noexcept {
@@ -32,6 +44,7 @@ constexpr pctencode_set pctencode_set_from_parts_field (
   case parts_field::host:
   case parts_field::port:
   case parts_field::scheme:
+  case parts_field::last:
   default: return pctencode_set::none;
   }
 }
@@ -56,6 +69,7 @@ private:
 
 std::size_t pct_encoded_size (std::string_view const str,
                               pctencode_set const encodeset);
+std::size_t pct_decoded_size (std::string_view const str);
 
 template <typename Function>
   requires std::is_invocable_r_v<std::string_view, Function, std::string_view,
@@ -134,23 +148,46 @@ puny_encoded_result<OutputIterator> puny_encoded (Range&& range,
   return {std::move (out), any_needed};
 }
 
+template <std::ranges::input_range Range>
+  requires std::is_same_v<
+    std::remove_cv_t<typename std::ranges::range_value_t<Range>>, char32_t>
+std::size_t puny_encoded_size (Range&& range) {
+  details::ro_sink_container<char> sink;
+  return puny_encoded (std::forward<Range> (range), std::back_inserter (sink))
+             .any_non_ascii
+           ? sink.size ()
+           : std::size_t{0};
+}
+
+template <std::output_iterator<char8_t> OutputIterator>
+struct puny_decoded_result {
+  OutputIterator out;
+  bool any_encoded = false;
+};
+
+template <std::output_iterator<char8_t> OutputIterator>
+puny_decoded_result (OutputIterator,
+                     bool) -> puny_decoded_result<OutputIterator>;
+
 template <std::ranges::bidirectional_range Range,
-          std::output_iterator<char32_t> OutputIterator>
+          std::output_iterator<char8_t> OutputIterator>
   requires std::is_same_v<std::ranges::range_value_t<Range>, char>
-std::error_code puny_decoded (Range&& range, OutputIterator out) {
-  using namespace std::string_view_literals;
+std::variant<std::error_code, puny_decoded_result<OutputIterator>>
+puny_decoded (Range&& range, OutputIterator out) {
   using std::ranges::subrange;
-  auto const end = std::ranges::end (range);
+  auto const last = std::ranges::end (range);
+  bool any_encoded = false;
 
   auto const find_dot = std::views::take_while (is_not_dot);
-  auto view = subrange{std::ranges::begin (range), end} | find_dot;
+  auto view = subrange{std::ranges::begin (range), last} | find_dot;
+  auto first = std::ranges::begin (view);
 
   for (;;) {
     if (starts_with (view, punycode_prefix)) {
-      auto b = std::ranges::begin (view);
-      std::ranges::advance (b, punycode_prefix.size ());
+      any_encoded = true;
+      std::ranges::advance (first, punycode_prefix.size ());
 
-      auto const component = subrange{b, std::ranges::end (view)};
+      auto const component = subrange{first, std::ranges::end (view)};
       std::string str2;
       std::ranges::copy (component, std::back_inserter (str2));
 
@@ -159,38 +196,47 @@ std::error_code puny_decoded (Range&& range, OutputIterator out) {
         return *erc;
       }
       auto const& [_, out_] =
-        std::ranges::copy (std::get<std::u32string> (decode_res), out);
+        std::ranges::copy (std::get<std::u32string> (decode_res) |
+                             icubaby::views::transcode<char32_t, char8_t>,
+                           out);
       out = std::move (out_);
 
-      std::ranges::advance (b, str2.size () + 1);
-      auto in = b;
-      if (in == end) {
+      std::ranges::advance (
+        first, static_cast<std::iter_difference_t<decltype (first)>> (
+                 str2.size () + 1U));
+      if (first == last) {
         break;
       }
-      view = subrange{in, end} | find_dot;
     } else {
-      auto const& [in, out_] = std::ranges::copy (view, out);
-      out = out_;
-      if (in == end) {
+      auto const& [first_, out_] = std::ranges::copy (view, out);
+      first = std::move (first_);
+      out = std::move (out_);
+      if (first == last) {
         break;
       }
-      view = subrange{std::next (in), end} | find_dot;
+      first = std::next (first);
     }
-
-    (*out++) = '.';
+    view = subrange{first, last} | find_dot;
+    *(out++) = '.';
   }
 
-  return {};
+  return puny_decoded_result{out, any_encoded};
 }
 
-template <std::ranges::input_range Range>
-  requires std::is_same_v<
-    std::remove_cv_t<typename std::ranges::range_value_t<Range>>, char32_t>
-std::size_t puny_encoded_size (Range&& range) {
+template <std::ranges::bidirectional_range Range>
+  requires std::is_same_v<std::ranges::range_value_t<Range>, char>
+std::variant<std::error_code, std::size_t> puny_decoded_size (Range&& range) {
   details::ro_sink_container<char> sink;
-  return puny_encoded (range, std::back_inserter (sink)).any_non_ascii
-           ? sink.size ()
-           : std::size_t{0};
+  auto out = std::back_inserter (sink);
+  auto result = puny_decoded (std::forward<Range> (range), out);
+  if (auto const* const decoded =
+        std::get_if<puny_decoded_result<decltype (out)>> (&result)) {
+    return decoded->any_encoded ? sink.size () : std::size_t{0};
+  }
+  if (auto const* const erc = std::get_if<std::error_code> (&result)) {
+    return *erc;
+  }
+  return make_error_code (std::errc::invalid_argument);
 }
 
 }  // end namespace details
@@ -199,9 +245,12 @@ template <typename VectorContainer>
   requires std::contiguous_iterator<typename VectorContainer::iterator> &&
            std::is_same_v<typename VectorContainer::value_type, char>
 parts encode (VectorContainer& store, parts const& p) {
+  using pft = std::underlying_type_t<parts_field>;
+  std::bitset<static_cast<pft> (parts_field::last)> needs_encoding;
+
   parts result = p;
   store.clear ();
-  auto convert_to_utf32 = [] (auto r) {
+  auto convert_to_utf32 = [] (auto const& r) {
     return r | std::views::transform ([] (char const c) {
              return static_cast<char8_t> (c);
            }) |
@@ -210,41 +259,119 @@ parts encode (VectorContainer& store, parts const& p) {
 
   auto required_size = std::size_t{0};
   details::parts_strings (
-    result, [&required_size, &convert_to_utf32] (std::string_view const str,
-                                                 parts_field const field) {
+    result, [&required_size, &convert_to_utf32, &needs_encoding] (
+              std::string_view const str, parts_field const field) {
       assert (str.data () != nullptr);
-      required_size += field == parts_field::host
-                         ? details::puny_encoded_size (convert_to_utf32 (str))
-                         : details::pct_encoded_size (
-                             str, pctencode_set_from_parts_field (field));
+      auto const extra = field == parts_field::host
+                           ? details::puny_encoded_size (convert_to_utf32 (str))
+                           : details::pct_encoded_size (
+                               str, pctencode_set_from_parts_field (field));
+      assert (static_cast<std::size_t> (field) < needs_encoding.size ());
+      auto const pos = static_cast<pft> (field);
+      needs_encoding.set (pos, needs_encoding.test (pos) || extra != 0);
+      required_size += extra;
       return str;
     });
   store.reserve (required_size);
 
+  details::parts_strings (result, [&store, &convert_to_utf32, &needs_encoding] (
+                                    std::string_view const str,
+                                    parts_field const field) {
+    assert (str.data () != nullptr);
+    assert (static_cast<std::size_t> (field) < needs_encoding.size ());
+    if (!needs_encoding.test (static_cast<pft> (field))) {
+      return str;
+    }
+
+    auto const original_size = store.size ();
+    if (field == parts_field::host) {
+      assert (details::puny_encoded_size (convert_to_utf32 (str)) != 0);
+      assert (store.capacity () >= original_size + details::puny_encoded_size (
+                                                     convert_to_utf32 (str)) &&
+              "store capacity is insufficient");
+      details::puny_encoded (convert_to_utf32 (str),
+                             std::back_inserter (store));
+      assert (original_size +
+                details::puny_encoded_size (convert_to_utf32 (str)) ==
+              store.size ());
+    } else {
+      auto const es = pctencode_set_from_parts_field (field);
+      assert (field == parts_field::path || needs_pctencode (str, es));
+      if (field == parts_field::path && !needs_pctencode (str, es)) {
+        return str;
+      }
+      assert (store.capacity () >=
+                original_size + details::pct_encoded_size (str, es) &&
+              "store capacity is insufficient");
+      pctencode (std::begin (str), std::end (str), std::back_inserter (store),
+                 es);
+      assert (original_size + details::pct_encoded_size (str, es) ==
+              store.size ());
+    }
+    return std::string_view{store.data () + original_size,
+                            store.size () - original_size};
+  });
+  assert (required_size == store.size () &&
+          "Expected store required size does not match actual");
+  return result;
+}
+
+template <typename VectorContainer>
+  requires std::contiguous_iterator<typename VectorContainer::iterator> &&
+           std::is_same_v<typename VectorContainer::value_type, char>
+std::variant<std::error_code, parts> decode (VectorContainer& store,
+                                             parts const& p) {
+  using pft = std::underlying_type_t<parts_field>;
+  std::bitset<static_cast<pft> (parts_field::last)> needs_encoding;
+
+  parts result = p;
+  store.clear ();
+
+  auto required_size = std::size_t{0};
+  std::error_code error;
   details::parts_strings (
-    result, [&store, &convert_to_utf32] (std::string_view const str,
-                                         parts_field const field) {
+    result, [&required_size, &error, &needs_encoding] (
+              std::string_view const str, parts_field const field) {
       assert (str.data () != nullptr);
+      if (error) {
+        return str;
+      }
+      auto extra = std::size_t{0};
+      if (field == parts_field::host) {
+        auto const pds_result = details::puny_decoded_size (str);
+        if (auto const* const size = std::get_if<std::size_t> (&pds_result)) {
+          extra = *size;
+        } else if (auto const* const erc =
+                     std::get_if<std::error_code> (&pds_result)) {
+          error = *erc;
+        } else {
+          error = make_error_code (std::errc::invalid_argument);
+        }
+      } else {
+        extra = details::pct_decoded_size (str);
+      }
+      needs_encoding.set (static_cast<pft> (field), extra != 0);
+      required_size += extra;
+      return str;
+    });
+  store.reserve (required_size);
+  if (error) {
+    return error;
+  }
+
+  details::parts_strings (
+    result, [&store, &needs_encoding] (std::string_view const str,
+                                       parts_field const field) {
+      assert (str.data () != nullptr);
+      assert (static_cast<std::size_t> (field) < needs_encoding.size ());
+      if (!needs_encoding.test (static_cast<pft> (field))) {
+        return str;
+      }
       auto const original_size = store.size ();
       if (field == parts_field::host) {
-        auto const pes = details::puny_encoded_size (convert_to_utf32 (str));
-        if (pes == 0) {
-          return str;
-        }
-        assert (store.capacity () >= original_size + pes &&
-                "store capacity is insufficient");
-        details::puny_encoded (convert_to_utf32 (str),
-                               std::back_inserter (store));
+        details::puny_decoded (str, std::back_inserter (store));
       } else {
-        auto const es = pctencode_set_from_parts_field (field);
-        if (!needs_pctencode (str, es)) {
-          return str;
-        }
-        assert (store.capacity () >=
-                  original_size + details::pct_encoded_size (str, es) &&
-                "store capacity is insufficient");
-        pctencode (std::begin (str), std::end (str), std::back_inserter (store),
-                   es);
+        std::ranges::copy (str | views::pctdecode, std::back_inserter (store));
       }
       return std::string_view{store.data () + original_size,
                               store.size () - original_size};
