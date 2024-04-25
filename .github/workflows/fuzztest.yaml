@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       BUILD_DIR: build_fuzztest
-      CLANG_VERSION: 15
+      CLANG_VERSION: 16
 
     steps:
       - name: Harden Runner
