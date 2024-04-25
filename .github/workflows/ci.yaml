@@ -11,17 +11,17 @@ jobs:
         include:
           # macOS builds
           # ~~~~~~~~~~~~
-          - name: macOS-13/Xcode/Debug
+          - name: macOS-14/Xcode/Debug
             build_type: Debug
             generator: Xcode
             options:
-            os: macos-13
+            os: macos-14
 
-          - name: macOS-13/Xcode/Release
+          - name: macOS-14/Xcode/Release
             build_type: Release
             generator: Xcode
             options:
-            os: macos-13
+            os: macos-14
 
           # Linux builds
           # ~~~~~~~~~~~~
