@@ -49,9 +49,19 @@ TEST (Parts, PunyEncodedThreeParts) {
 // NOLINTNEXTLINE
 TEST (Parts, PunyEncodedMuchenDe) {
   std::string output;
-  uri::details::puny_encoded (
-    u8"M\xC3\xBCnchen.de"sv | icubaby::views::transcode<char8_t, char32_t>,
-    std::back_inserter (output));
+  std::u32string const input{
+    'M',
+    static_cast<char32_t> (
+      0x00FC),  // U+00FC LATIN SMALL LETTER U WITH DIAERESIS
+    'n',
+    'c',
+    'h',
+    'e',
+    'n',
+    '.',
+    'd',
+    'e'};
+  uri::details::puny_encoded (input, std::back_inserter (output));
   EXPECT_EQ (output, "xn--Mnchen-3ya.de");
 }
 
@@ -60,18 +70,37 @@ TEST (Parts, PunyEncodedMuchenDotGrinningFace) {
   std::string output;
   // M<U+00FC LATIN SMALL LETTER U WITH DIAERESIS>nchen.<U+03C0 greek small
   // letter pi>
-  uri::details::puny_encoded (u8"M\xC3\xBCnchen.\xCF\x80"sv |
-                                icubaby::views::transcode<char8_t, char32_t>,
-                              std::back_inserter (output));
+  std::u32string const input{
+    'M',
+    static_cast<char32_t> (
+      0x00FC),  // U+00FC LATIN SMALL LETTER U WITH DIAERESIS
+    'n',
+    'c',
+    'h',
+    'e',
+    'n',
+    '.',
+    static_cast<char32_t> (0x03C0),  // U+03C0 GREEK SMALL LETTER PI
+  };
+  uri::details::puny_encoded (input, std::back_inserter (output));
   EXPECT_EQ (output, "xn--Mnchen-3ya.xn--1xa");
 }
 
 // NOLINTNEXTLINE
 TEST (Parts, PunyEncodedSizeMuchenDe) {
-  EXPECT_EQ (
-    uri::details::puny_encoded_size (
-      u8"M\xC3\xBCnchen.de"sv | icubaby::views::transcode<char8_t, char32_t>),
-    std::size_t{17});
+  std::u32string const input{
+    'M',
+    static_cast<char32_t> (
+      0x00FC),  // U+00FC LATIN SMALL LETTER U WITH DIAERESIS
+    'n',
+    'c',
+    'h',
+    'e',
+    'n',
+    '.',
+    'd',
+    'e'};
+  EXPECT_EQ (uri::details::puny_encoded_size (input), std::size_t{17});
 }
 
 // NOLINTNEXTLINE
