@@ -127,5 +127,6 @@ jobs:
 
       - name: Build
         shell: bash
-        run: cmake --build "${{ github.workspace }}/build" \
-                   --config ${{ matrix.build_type }}
+        run: |
+          cmake --build "${{ github.workspace }}/build" \
+                --config ${{ matrix.build_type }}
