@@ -14,29 +14,31 @@ jobs:
           - name: macOS-13/Xcode/Debug
             build_type: Debug
             generator: Xcode
-            options: -D URI_CXX17=No
+            options:
             os: macos-13
 
           - name: macOS-13/Xcode/Release
             build_type: Release
             generator: Xcode
-            options: -D URI_CXX17=No
+            options:
             os: macos-13
 
           # Linux builds
           # ~~~~~~~~~~~~
-          - name: Ubuntu-22.04/gcc-11/Debug
+          - name: Ubuntu-22.04/gcc-12/Debug
             apt_install: cmake ninja-build
             build_type: Debug
+	    cxx_compiler; -D CMAKE_C_COMPILER=gcc-12 -D CMAKE_CXX_COMPILER=g++-12
             generator: Ninja
-            options: -D URI_CXX17=No
+            options:
             os: ubuntu-22.04
 
-          - name: Ubuntu-22.04/gcc-11/Release
+          - name: Ubuntu-22.04/gcc-12/Release
             apt_install: cmake ninja-build
             build_type: Release
+  	    cxx_compiler; -D CMAKE_C_COMPILER=gcc-12 -D CMAKE_CXX_COMPILER=g++-12
             generator: Ninja
-            options: -D URI_CXX17=No
+            options:
             os: ubuntu-22.04
 
           - name: Ubuntu-22.04/clang-15/Debug
@@ -44,7 +46,7 @@ jobs:
             build_type: Debug
             cxx_compiler: -D CMAKE_CXX_COMPILER=clang++-15 -D CMAKE_C_COMPILER=clang-15
             generator: Ninja
-            options: -D URI_CXX17=No -D URI_LIBCXX=Yes -D CMAKE_EXE_LINKER_FLAGS=-fuse-ld=gold
+            options: -D URI_LIBCXX=Yes -D CMAKE_EXE_LINKER_FLAGS=-fuse-ld=gold
             os: ubuntu-22.04
 
           - name: Ubuntu-22.04/clang-15/Release
@@ -52,7 +54,7 @@ jobs:
             build_type: Release
             cxx_compiler: -D CMAKE_CXX_COMPILER=clang++-15 -D CMAKE_C_COMPILER=clang-15
             generator: Ninja
-            options: -D URI_CXX17=No -D URI_LIBCXX=Yes -D CMAKE_EXE_LINKER_FLAGS=-fuse-ld=gold
+            options: -D URI_LIBCXX=Yes -D CMAKE_EXE_LINKER_FLAGS=-fuse-ld=gold
             os: ubuntu-22.04
 
           # Windows builds
@@ -60,13 +62,13 @@ jobs:
           - name: Windows-latest/VS2022/Debug
             build_type: Debug
             generator: Visual Studio 17 2022
-            options: -D URI_CXX17=No
+            options:
             os: windows-latest
 
           - name: Windows-latest/VS2022/Release
             build_type: Release
             generator: Visual Studio 17 2022
-            options: -D URI_CXX17=No
+            options:
             os: windows-latest
 
     name: ${{ matrix.name }}
