@@ -23,6 +23,7 @@ jobs:
             generator: Xcode
             options:
             os: macos-14
+            xcode_version: 15.3
 
           # Linux builds
           # ~~~~~~~~~~~~
@@ -108,7 +109,6 @@ jobs:
       - name: Select Xcode (macOS)
         if: matrix.xcode_version != ''
         run: |
-          ls /Applications/Xcode*.app
           sudo xcode-select -s /Applications/Xcode_${{matrix.xcode_version}}.app/Contents/Developer
 
       - name: Create Build Environment
@@ -127,4 +127,5 @@ jobs:
 
       - name: Build
         shell: bash
-        run: cmake --build "${{ github.workspace }}/build" --config ${{ matrix.build_type }}
+        run: cmake --build "${{ github.workspace }}/build" \
+                   --config ${{ matrix.build_type }}
