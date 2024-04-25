@@ -16,6 +16,7 @@ jobs:
             generator: Xcode
             options:
             os: macos-14
+            xcode_version: 15.3
 
           - name: macOS-14/Xcode/Release
             build_type: Release
@@ -103,6 +104,12 @@ jobs:
           sed -ie "/^add-apt-repository/ s/$/ --yes/" llvm.sh
           chmod +x llvm.sh
           sudo ./llvm.sh ${{matrix.llvm_install}}
+
+      - name: Select Xcode (macOS)
+        if: matrix.xcode_version != ''
+        run: |
+          ls /Applications/Xcode*.app
+          sudo xcode-select -s /Applications/Xcode.${{matrix.xcode_version}}.app/Contents/Developer
 
       - name: Create Build Environment
         run: cmake -E make_directory ${{ github.workspace }}/build
