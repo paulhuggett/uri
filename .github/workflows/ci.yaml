@@ -109,7 +109,7 @@ jobs:
         if: matrix.xcode_version != ''
         run: |
           ls /Applications/Xcode*.app
-          sudo xcode-select -s /Applications/Xcode.${{matrix.xcode_version}}.app/Contents/Developer
+          sudo xcode-select -s /Applications/Xcode_${{matrix.xcode_version}}.app/Contents/Developer
 
       - name: Create Build Environment
         run: cmake -E make_directory ${{ github.workspace }}/build
