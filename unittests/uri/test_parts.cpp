@@ -77,10 +77,11 @@ TEST (Parts, PunyEncodedSizeMuchenDe) {
 // NOLINTNEXTLINE
 TEST (Parts, PunyEncodedMunchenGrinningFace) {
   uri::parts p;
-  p.authority = (struct uri::parts::authority){
-    std::nullopt, "M\xC3\xBCnchen.\xF0\x9F\x98\x80"sv, std::nullopt};
+  using auth = struct uri::parts::authority;
+  p.authority =
+    auth{std::nullopt, "M\xC3\xBCnchen.\xF0\x9F\x98\x80"sv, std::nullopt};
   std::vector<char> store;
-  uri::parts encoded_parts = uri::encode (store, p);
+  uri::parts const encoded_parts = uri::encode (store, p);
   EXPECT_EQ (encoded_parts.authority->host, "xn--Mnchen-3ya.xn--e28h");
 }
 
@@ -126,9 +127,9 @@ TEST (Parts, PunyDecodedMuchenDe) {
 // NOLINTNEXTLINE
 TEST (Parts, AllSetButNothingToEncode) {
   uri::parts input;
+  using auth = struct uri::parts::authority;
   input.scheme = "https"sv;
-  input.authority =
-    (struct uri::parts::authority){"user"sv, "host"sv, "1234"sv};
+  input.authority = auth{"user"sv, "host"sv, "1234"sv};
   input.path.absolute = true;
   input.path.segments = std::vector<std::string_view>{"a"sv, "b"sv};
   input.query = "query"sv;
@@ -158,9 +159,9 @@ TEST (Parts, AllSetButNothingToEncode) {
 // NOLINTNEXTLINE
 TEST (Parts, EncodeDecode) {
   uri::parts original;
+  using auth = struct uri::parts::authority;
   original.scheme = "https"sv;
-  original.authority =
-    (struct uri::parts::authority){"user"sv, "M\xC3\xBCnchen.de"sv, "1234"sv};
+  original.authority = auth{"user"sv, "M\xC3\xBCnchen.de"sv, "1234"sv};
   original.path.absolute = true;
   original.path.segments = std::vector<std::string_view>{"~\xC2\xA1"sv};
   original.query = "a%b"sv;
@@ -193,6 +194,7 @@ TEST (Parts, EncodeDecode) {
 // NOLINTNEXTLINE
 TEST (Parts, EncodeDecodePunycodeTLD) {
   uri::parts original;
+  using auth = struct uri::parts::authority;
   original.scheme = "http"sv;
   // CYRILLIC SMALL LETTER IO
   // CYRILLIC SMALL LETTER ZHE
@@ -201,8 +203,7 @@ TEST (Parts, EncodeDecodePunycodeTLD) {
   //
   // CYRILLIC SMALL LETTER ER
   // CYRILLIC SMALL LETTER EF
-  original.authority =
-    (struct uri::parts::authority){std::nullopt, "ёжик.рф"sv, std::nullopt};
+  original.authority = auth{std::nullopt, "ёжик.рф"sv, std::nullopt};
 
   std::vector<char> encode_store;
   uri::parts const encoded = uri::encode (encode_store, original);
@@ -268,7 +269,7 @@ static void EncodeDecodeRoundTrip (parts_without_authority const& base,
 
     auto const& decoded = std::get<uri::parts> (decode_result);
     EXPECT_EQ (decoded.scheme, original.scheme);
-    ASSERT_EQ (decoded.authority, original.authority);
+    ASSERT_EQ (decoded.authority.has_value (), original.authority.has_value ());
     if (decoded.authority && original.authority) {
       EXPECT_EQ (decoded.authority->userinfo, original.authority->userinfo);
       EXPECT_EQ (decoded.authority->host, original.authority->host);
