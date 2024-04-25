@@ -23,6 +23,11 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <version>
+
+#if !defined(__cpp_lib_ranges) || __cpp_lib_ranges < 202110L
+#error "Need __cpp_lib_ranges to be available"
+#endif
 
 namespace uri {
 
@@ -123,7 +128,7 @@ private:
   [[no_unique_address]] View base_ = View{};
 };
 
-template <class Range>
+template <typename Range>
 pctdecode_view (Range&&) -> pctdecode_view<std::views::all_t<Range>>;
 
 template <std::ranges::input_range View>
