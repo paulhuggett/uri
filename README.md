@@ -1,6 +1,6 @@
 # uri
 
-This is a standalone C++17 library providing RFC 3986 compliant functions for parsing, classifying and composing URIs and URI references.
+This is a standalone C++20 library providing RFC 3986 compliant functions for parsing, classifying and composing URIs and URI references.
 
 | Category | Badges |
 | --- | --- |
