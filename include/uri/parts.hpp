@@ -67,9 +67,8 @@ private:
   std::size_t size_ = 0;
 };
 
-std::size_t pct_encoded_size (std::string_view const str,
-                              pctencode_set const encodeset);
-std::size_t pct_decoded_size (std::string_view const str);
+std::size_t pct_encoded_size (std::string_view str, pctencode_set encodeset);
+std::size_t pct_decoded_size (std::string_view str);
 
 template <typename Function>
   requires std::is_invocable_r_v<std::string_view, Function, std::string_view,
