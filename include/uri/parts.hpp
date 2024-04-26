@@ -191,15 +191,19 @@ puny_decoded (Range&& range, OutputIterator out) {
       first = std::ranges::copy (subrange{first, std::ranges::end (view)},
                                  std::back_inserter (label))
                 .in;
-
-      auto const decode_result = punycode::decode (label);
-      if (auto const* erc = std::get_if<std::error_code> (&decode_result)) {
+      auto decode_result = punycode::decode (label);
+      if (auto const* const dr = std::get_if<
+            std::variant_alternative_t<1U, decltype (decode_result)>> (
+            &decode_result)) {
+        out = std::ranges::copy (
+                dr->str | icubaby::views::transcode<char32_t, char8_t>, out)
+                .out;
+      } else if (auto const* const erc =
+                   std::get_if<std::error_code> (&decode_result)) {
         return *erc;
+      } else {
+        return make_error_code (std::errc::invalid_argument);
       }
-      out = std::ranges::copy (std::get<std::u32string> (decode_result) |
-                                 icubaby::views::transcode<char32_t, char8_t>,
-                               out)
-              .out;
     } else {
       auto const& copy_result = std::ranges::copy (view, out);
       first = std::move (copy_result.in);

@@ -20,6 +20,8 @@
 
 using namespace std::string_view_literals;
 
+constexpr auto decoded_success_result_index = std::size_t{1};
+
 // NOLINTNEXTLINE
 TEST (Punycode, AsciiNoPlain) {
   auto const orig = std::u32string{
@@ -30,8 +32,19 @@ TEST (Punycode, AsciiNoPlain) {
   std::string actual;
   uri::punycode::encode (orig, false, std::back_inserter (actual));
   EXPECT_EQ (actual, encoded);
-  EXPECT_EQ (uri::punycode::decode (encoded),
-             uri::punycode::decode_result{orig});
+
+  auto const decoded = uri::punycode::decode (encoded);
+  static_assert (
+    std::is_same_v<
+      uri::punycode::decode_success_result<
+        std::ranges::iterator_t<std::remove_const_t<decltype (encoded)>>>,
+      std::variant_alternative_t<decoded_success_result_index,
+                                 std::remove_const_t<decltype (decoded)>>>);
+
+  ASSERT_EQ (decoded.index (), decoded_success_result_index);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).str, orig);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).in,
+             std::end (encoded));
 }
 
 // NOLINTNEXTLINE
@@ -57,16 +70,25 @@ TEST (Punycode, Delimiter) {
   std::string actual;
   uri::punycode::encode (orig, false, std::back_inserter (actual));
   EXPECT_EQ (actual, encoded);
-  EXPECT_EQ (uri::punycode::decode (encoded),
-             uri::punycode::decode_result{orig});
+
+  auto const decoded = uri::punycode::decode (encoded);
+  ASSERT_EQ (decoded.index (), decoded_success_result_index);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).str, orig);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).in,
+             std::end (encoded));
 }
 
 // NOLINTNEXTLINE
 TEST (Punycode, DecodeDelimiterCaps) {
   constexpr auto batak_letter_a = char32_t{0x1BC0};
   auto const orig = std::u32string{',', '-', batak_letter_a};
-  EXPECT_EQ (uri::punycode::decode (",--9CR"sv),
-             uri::punycode::decode_result{orig});
+
+  auto const encoded = ",--9CR"sv;
+  auto const decoded = uri::punycode::decode (encoded);
+  ASSERT_EQ (decoded.index (), decoded_success_result_index);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).str, orig);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).in,
+             std::end (encoded));
 }
 
 // NOLINTNEXTLINE
@@ -79,8 +101,12 @@ TEST (Punycode, ArabicEgyptian) {
   std::string actual;
   uri::punycode::encode (arabic, false, std::back_inserter (actual));
   EXPECT_EQ (actual, encoded_arabic);
-  EXPECT_EQ (uri::punycode::decode (encoded_arabic),
-             (uri::punycode::decode_result{arabic}));
+
+  auto const decoded = uri::punycode::decode (encoded_arabic);
+  ASSERT_EQ (decoded.index (), decoded_success_result_index);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).str, arabic);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).in,
+             std::end (encoded_arabic));
 }
 
 // NOLINTNEXTLINE
@@ -93,8 +119,13 @@ TEST (Punycode, ChineseSimplified) {
   uri::punycode::encode (chinese_simplified, false,
                          std::back_inserter (actual));
   EXPECT_EQ (actual, encoded_chinese_simplified);
-  EXPECT_EQ (uri::punycode::decode (encoded_chinese_simplified),
-             uri::punycode::decode_result{chinese_simplified});
+
+  auto const decoded = uri::punycode::decode (encoded_chinese_simplified);
+  ASSERT_EQ (decoded.index (), decoded_success_result_index);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).str,
+             chinese_simplified);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).in,
+             std::end (encoded_chinese_simplified));
 }
 
 // NOLINTNEXTLINE
@@ -105,8 +136,12 @@ TEST (Punycode, ChineseTraditional) {
   auto const encoded = "ihqwctvzc91f659drss3x8bo0yb"sv;
   std::string actual;
   uri::punycode::encode (orig, false, std::back_inserter (actual));
-  EXPECT_EQ (uri::punycode::decode (encoded),
-             uri::punycode::decode_result{orig});
+
+  auto const decoded = uri::punycode::decode (encoded);
+  ASSERT_EQ (decoded.index (), decoded_success_result_index);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).str, orig);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).in,
+             std::end (encoded));
 }
 
 // NOLINTNEXTLINE
@@ -120,8 +155,12 @@ TEST (Punycode, Czech) {
   std::string actual;
   uri::punycode::encode (orig, false, std::back_inserter (actual));
   EXPECT_EQ (actual, encoded);
-  EXPECT_EQ (uri::punycode::decode (encoded),
-             uri::punycode::decode_result{orig});
+
+  auto const decoded = uri::punycode::decode (encoded);
+  ASSERT_EQ (decoded.index (), decoded_success_result_index);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).str, orig);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).in,
+             std::end (encoded));
 }
 
 // NOLINTNEXTLINE
@@ -134,8 +173,12 @@ TEST (Punycode, Hebrew) {
   std::string actual;
   uri::punycode::encode (orig, false, std::back_inserter (actual));
   EXPECT_EQ (actual, encoded);
-  EXPECT_EQ (uri::punycode::decode (encoded),
-             uri::punycode::decode_result{orig});
+
+  auto const decoded = uri::punycode::decode (encoded);
+  ASSERT_EQ (decoded.index (), decoded_success_result_index);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).str, orig);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).in,
+             std::end (encoded));
 }
 
 // NOLINTNEXTLINE
@@ -149,8 +192,12 @@ TEST (Punycode, HindiDevanagari) {
   std::string actual;
   uri::punycode::encode (orig, false, std::back_inserter (actual));
   EXPECT_EQ (actual, encoded);
-  EXPECT_EQ (uri::punycode::decode (encoded),
-             uri::punycode::decode_result{orig});
+
+  auto const decoded = uri::punycode::decode (encoded);
+  ASSERT_EQ (decoded.index (), decoded_success_result_index);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).str, orig);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).in,
+             std::end (encoded));
 }
 
 // NOLINTNEXTLINE
@@ -162,8 +209,12 @@ TEST (Punycode, JapaneseKanjiAndHiragana) {
   std::string actual;
   uri::punycode::encode (orig, false, std::back_inserter (actual));
   EXPECT_EQ (actual, encoded);
-  EXPECT_EQ (uri::punycode::decode (encoded),
-             uri::punycode::decode_result{orig});
+
+  auto const decoded = uri::punycode::decode (encoded);
+  ASSERT_EQ (decoded.index (), decoded_success_result_index);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).str, orig);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).in,
+             std::end (encoded));
 }
 
 // NOLINTNEXTLINE
@@ -177,8 +228,12 @@ TEST (Punycode, KoreanHangulSyllables) {
   std::string actual;
   uri::punycode::encode (orig, false, std::back_inserter (actual));
   EXPECT_EQ (actual, encoded);
-  EXPECT_EQ (uri::punycode::decode (encoded),
-             uri::punycode::decode_result{orig});
+
+  auto const decoded = uri::punycode::decode (encoded);
+  ASSERT_EQ (decoded.index (), decoded_success_result_index);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).str, orig);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).in,
+             std::end (encoded));
 }
 
 // NOLINTNEXTLINE
@@ -192,8 +247,12 @@ TEST (Punycode, RussianCyrillic) {
   std::string actual;
   uri::punycode::encode (orig, false, std::back_inserter (actual));
   EXPECT_EQ (actual, encoded);
-  EXPECT_EQ (uri::punycode::decode (encoded),
-             uri::punycode::decode_result{orig});
+
+  auto const decoded = uri::punycode::decode (encoded);
+  ASSERT_EQ (decoded.index (), decoded_success_result_index);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).str, orig);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).in,
+             std::end (encoded));
 }
 
 // NOLINTNEXTLINE
@@ -209,8 +268,12 @@ TEST (Punycode, Spanish) {
   std::string actual;
   uri::punycode::encode (orig, false, std::back_inserter (actual));
   EXPECT_EQ (actual, encoded);
-  EXPECT_EQ (uri::punycode::decode (encoded),
-             uri::punycode::decode_result{orig});
+
+  auto const decoded = uri::punycode::decode (encoded);
+  ASSERT_EQ (decoded.index (), decoded_success_result_index);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).str, orig);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).in,
+             std::end (encoded));
 }
 
 // NOLINTNEXTLINE
@@ -226,8 +289,12 @@ TEST (Punycode, Vietnamese) {
   std::string actual;
   uri::punycode::encode (orig, false, std::back_inserter (actual));
   EXPECT_EQ (actual, encoded);
-  EXPECT_EQ (uri::punycode::decode (encoded),
-             uri::punycode::decode_result{orig});
+
+  auto const decoded = uri::punycode::decode (encoded);
+  ASSERT_EQ (decoded.index (), decoded_success_result_index);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).str, orig);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).in,
+             std::end (encoded));
 }
 
 // NOLINTNEXTLINE
@@ -239,8 +306,12 @@ TEST (Punycode, ExampleL) {
   std::string actual;
   uri::punycode::encode (orig, false, std::back_inserter (actual));
   EXPECT_EQ (actual, encoded);
-  EXPECT_EQ (uri::punycode::decode (encoded),
-             uri::punycode::decode_result{orig});
+
+  auto const decoded = uri::punycode::decode (encoded);
+  ASSERT_EQ (decoded.index (), decoded_success_result_index);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).str, orig);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).in,
+             std::end (encoded));
 }
 
 // NOLINTNEXTLINE
@@ -254,8 +325,12 @@ TEST (Punycode, ExampleM) {
   std::string actual;
   uri::punycode::encode (orig, false, std::back_inserter (actual));
   EXPECT_EQ (actual, encoded);
-  EXPECT_EQ (uri::punycode::decode (encoded),
-             uri::punycode::decode_result{orig});
+
+  auto const decoded = uri::punycode::decode (encoded);
+  ASSERT_EQ (decoded.index (), decoded_success_result_index);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).str, orig);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).in,
+             std::end (encoded));
 }
 
 // NOLINTNEXTLINE
@@ -269,8 +344,12 @@ TEST (Punycode, ExampleN) {
   std::string actual;
   uri::punycode::encode (orig, false, std::back_inserter (actual));
   EXPECT_EQ (actual, encoded);
-  EXPECT_EQ (uri::punycode::decode (encoded),
-             uri::punycode::decode_result{orig});
+
+  auto const decoded = uri::punycode::decode (encoded);
+  ASSERT_EQ (decoded.index (), decoded_success_result_index);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).str, orig);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).in,
+             std::end (encoded));
 }
 
 // NOLINTNEXTLINE
@@ -282,8 +361,12 @@ TEST (Punycode, ExampleO) {
   std::string actual;
   uri::punycode::encode (orig, false, std::back_inserter (actual));
   EXPECT_EQ (actual, encoded);
-  EXPECT_EQ (uri::punycode::decode (encoded),
-             uri::punycode::decode_result{orig});
+
+  auto const decoded = uri::punycode::decode (encoded);
+  ASSERT_EQ (decoded.index (), decoded_success_result_index);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).str, orig);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).in,
+             std::end (encoded));
 }
 
 // NOLINTNEXTLINE
@@ -296,8 +379,12 @@ TEST (Punycode, ExampleP) {
   std::string actual;
   uri::punycode::encode (orig, false, std::back_inserter (actual));
   EXPECT_EQ (actual, encoded);
-  EXPECT_EQ (uri::punycode::decode (encoded),
-             uri::punycode::decode_result{orig});
+
+  auto const decoded = uri::punycode::decode (encoded);
+  ASSERT_EQ (decoded.index (), decoded_success_result_index);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).str, orig);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).in,
+             std::end (encoded));
 }
 
 // NOLINTNEXTLINE
@@ -309,8 +396,12 @@ TEST (Punycode, ExampleQ) {
   std::string actual;
   uri::punycode::encode (orig, false, std::back_inserter (actual));
   EXPECT_EQ (actual, encoded);
-  EXPECT_EQ (uri::punycode::decode (encoded),
-             uri::punycode::decode_result{orig});
+
+  auto const decoded = uri::punycode::decode (encoded);
+  ASSERT_EQ (decoded.index (), decoded_success_result_index);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).str, orig);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).in,
+             std::end (encoded));
 }
 
 // NOLINTNEXTLINE
@@ -324,8 +415,12 @@ TEST (Punycode, ExampleR) {
     uri::punycode::encode (orig, false, std::back_inserter (actual));
   EXPECT_EQ (actual, encoded);
   EXPECT_TRUE (has_non_basic);
-  EXPECT_EQ (uri::punycode::decode (encoded),
-             uri::punycode::decode_result{orig});
+
+  auto const decoded = uri::punycode::decode (encoded);
+  ASSERT_EQ (decoded.index (), decoded_success_result_index);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).str, orig);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).in,
+             std::end (encoded));
 }
 
 // NOLINTNEXTLINE
@@ -339,22 +434,28 @@ TEST (Punycode, ExampleS) {
     uri::punycode::encode (orig, false, std::back_inserter (actual));
   EXPECT_EQ (actual, encoded);
   EXPECT_FALSE (has_non_basic);
-  EXPECT_EQ (uri::punycode::decode (encoded),
-             uri::punycode::decode_result{orig});
+
+  auto const decoded = uri::punycode::decode (encoded);
+  ASSERT_EQ (decoded.index (), decoded_success_result_index);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).str, orig);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).in,
+             std::end (encoded));
 }
 
 // NOLINTNEXTLINE
 TEST (Punycode, BadInput) {
-  EXPECT_EQ (uri::punycode::decode ("eg{|}"),
-             uri::punycode::decode_result{
-               make_error_code (uri::punycode::decode_error_code::bad_input)});
+  auto const decoded = uri::punycode::decode ("eg{|}");
+  ASSERT_EQ (decoded.index (), 0U);
+  EXPECT_EQ (std::get<0U> (decoded),
+             make_error_code (uri::punycode::decode_error_code::bad_input));
 }
 
 // NOLINTNEXTLINE
 TEST (Punycode, BadInputInPlainAsciiPart) {
-  EXPECT_EQ (uri::punycode::decode ("\x80-eg"),
-             uri::punycode::decode_result{
-               make_error_code (uri::punycode::decode_error_code::bad_input)});
+  auto const decoded = uri::punycode::decode ("\x80-eg");
+  ASSERT_EQ (decoded.index (), 0U);
+  EXPECT_EQ (std::get<0U> (decoded),
+             make_error_code (uri::punycode::decode_error_code::bad_input));
 }
 
 #if URI_FUZZTEST

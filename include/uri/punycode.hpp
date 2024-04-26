@@ -247,10 +247,18 @@ std::variant<std::error_code, std::tuple<std::size_t, Iterator>> decode_vli (
 
 }  // end namespace details
 
-using decode_result = std::variant<std::error_code, std::u32string>;
+template <std::bidirectional_iterator BidirectionalIterator>
+struct decode_success_result {
+  std::u32string str;
+  BidirectionalIterator in;
+};
+
+template <std::bidirectional_iterator BidirectionalIterator>
+using decode_result =
+  std::variant<std::error_code, decode_success_result<BidirectionalIterator>>;
 
 template <std::bidirectional_iterator I, std::sentinel_for<I> S>
-decode_result decode (I first, S last) {
+decode_result<I> decode (I first, S last) {
   std::u32string output;
   static constexpr auto maxint =
     std::numeric_limits<std::uint_least32_t>::max ();
@@ -313,13 +321,13 @@ decode_result decode (I first, S last) {
     output.insert (i, std::size_t{1}, static_cast<char32_t> (n));
     ++i;
   }
-  return output;
+  return decode_success_result<I>{std::move (output), std::move (in)};
 }
 
 template <std::ranges::bidirectional_range Range>
   requires std::is_same_v<std::remove_cv_t<std::ranges::range_value_t<Range>>,
                           char>
-decode_result decode (Range&& input) {
+decode_result<std::ranges::iterator_t<Range>> decode (Range&& input) {
   return decode (std::ranges::begin (input), std::ranges::end (input));
 }
 

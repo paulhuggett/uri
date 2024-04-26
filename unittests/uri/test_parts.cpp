@@ -254,6 +254,22 @@ TEST (Parts, EncodeDecodePunycodeTLD) {
   ASSERT_FALSE (decoded.fragment.has_value ());
 }
 
+// NOLINTNEXTLINE
+TEST (Parts, DecodeBadPunycodeTLD) {
+  uri::parts encoded;
+  using auth = struct uri::parts::authority;
+  encoded.scheme = "http"sv;
+  encoded.authority = auth{std::nullopt, "xn--ё"sv, std::nullopt};
+
+  std::vector<char> decode_store;
+  std::variant<std::error_code, uri::parts> const decode_result =
+    uri::decode (decode_store, encoded);
+  ASSERT_TRUE (std::holds_alternative<std::error_code> (decode_result));
+
+  EXPECT_EQ (std::get<std::error_code> (decode_result),
+             make_error_code (uri::punycode::decode_error_code::bad_input));
+}
+
 #if URI_FUZZTEST
 
 using opt_authority = std::optional<struct uri::parts::authority>;
