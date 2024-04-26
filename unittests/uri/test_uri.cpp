@@ -1738,18 +1738,21 @@ TEST (PartsValid, SchemeEmpty) {
   EXPECT_FALSE (p.valid ()) << "Scheme must have at least one leading ALPHA";
 }
 
+// NOLINTNEXTLINE
 TEST (PartsValid, SchemeSimple) {
   uri::parts p;
   p.scheme = "scheme";
   EXPECT_TRUE (p.valid ());
 }
 
+// NOLINTNEXTLINE
 TEST (PartsValid, SchemeLeadingDigit) {
   uri::parts p;
   p.scheme = "123";
   EXPECT_FALSE (p.valid ()) << "Scheme must have at least one leading ALPHA";
 }
 
+// NOLINTNEXTLINE
 TEST (PartsValid, SchemeMixedCharacters) {
   uri::parts p;
   p.scheme = "a+123";
