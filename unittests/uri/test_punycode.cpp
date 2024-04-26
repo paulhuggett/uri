@@ -486,7 +486,13 @@ auto U32String () {
 void EncodeDecodeRoundTrip (std::u32string const& s) {
   std::string encoded;
   uri::punycode::encode (s, false, std::back_inserter (encoded));
-  EXPECT_EQ (uri::punycode::decode (encoded), uri::punycode::decode_result{s});
+
+  auto const decoded = uri::punycode::decode (encoded);
+
+  ASSERT_EQ (decoded.index (), decoded_success_result_index);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).str, s);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).in,
+             std::end (encoded));
 }
 
 }  // end anonymous namespace
@@ -506,10 +512,11 @@ std::string::const_iterator ascii_part_end (std::string const& encoded) {
 }
 
 void DecodeEncodeRoundTrip (std::string const& original) {
-  uri::punycode::decode_result const res = uri::punycode::decode (original);
-  if (auto const* const decoded = std::get_if<std::u32string> (&res)) {
+  auto const res = uri::punycode::decode (original);
+  if (res.index () == decoded_success_result_index) {
     std::string encoded;
-    uri::punycode::encode (*decoded, false, std::back_inserter (encoded));
+    uri::punycode::encode (std::get<decoded_success_result_index> (res).str,
+                           false, std::back_inserter (encoded));
 
     auto const ascii_end = ascii_part_end (original);
     ASSERT_EQ (original.size (), encoded.size ());
