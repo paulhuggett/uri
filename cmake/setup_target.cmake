@@ -34,6 +34,7 @@ function (setup_target target)
     -Wno-c++98-compat
     -Wno-c++98-compat-pedantic
     -Wno-c99-extensions
+    -Wno-covered-switch-default
     -Wno-exit-time-destructors
     -Wno-padded
     -Wno-undef
@@ -95,5 +96,4 @@ function (setup_target target)
       $<$<CXX_COMPILER_ID:MSVC>:>
   )
   target_compile_definitions (${target} PUBLIC URI_FUZZTEST=$<BOOL:${URI_FUZZTEST}>)
-
 endfunction (setup_target)

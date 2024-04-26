@@ -117,6 +117,7 @@ std::ostream& operator<< (std::ostream& os,
 std::ostream& operator<< (std::ostream& os, parts const& p);
 
 std::optional<parts> split (std::string_view in);
+std::optional<parts> split_reference (std::string_view in);
 
 parts join (parts const& base, parts const& reference, bool strict = true);
 std::optional<parts> join (std::string_view Base, std::string_view R,

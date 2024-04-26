@@ -83,6 +83,7 @@ static void PctDecodeNeverCrashes (std::string const& input) {
   std::copy (uri::pctdecode_begin (input), uri::pctdecode_end (input),
              std::back_inserter (out));
 }
+// NOLINTNEXTLINE
 FUZZ_TEST (PctDecodeFuzz, PctDecodeNeverCrashes);
 
 #if defined(__cpp_lib_ranges) && __cpp_lib_ranges >= 201811L
@@ -91,6 +92,7 @@ static void PctDecodeViewNeverCrashes (std::string const& input) {
   auto r = input | uri::views::pctdecode;
   std::ranges::copy (r, std::back_inserter (out));
 }
+// NOLINTNEXTLINE
 FUZZ_TEST (PctDecodeFuzz, PctDecodeViewNeverCrashes);
 
 #endif  // __cpp_lib_ranges

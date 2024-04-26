@@ -11,10 +11,12 @@
 // SPDX-License-Identifier: MIT
 //===----------------------------------------------------------------------===//
 #include "uri/uri.hpp"
-#include "uri/rule.hpp"
 
 #include <cassert>
 #include <sstream>
+
+#include "uri/pctencode.hpp"
+#include "uri/rule.hpp"
 
 using namespace uri;
 
@@ -851,20 +853,22 @@ bool parts::authority::valid () const noexcept {
 }
 
 bool parts::valid () const noexcept {
-  if (scheme.has_value () && !rule{scheme.value ()}.concat (schemefn).done ()) {
+  if (!this->scheme.has_value () ||
+      !rule{this->scheme.value ()}.concat (schemefn).done ()) {
     return false;
   }
-  if (authority.has_value () && !authority->valid ()) {
+  if (this->authority.has_value () && !this->authority->valid ()) {
     return false;
   }
-  if (!path.valid ()) {
+  if (!this->path.valid ()) {
     return false;
   }
-  if (query.has_value () && !rule{query.value ()}.concat (queryfn).done ()) {
+  if (this->query.has_value () &&
+      !rule{this->query.value ()}.concat (queryfn).done ()) {
     return false;
   }
-  if (fragment.has_value () &&
-      !rule{fragment.value ()}.concat (fragmentfn).done ()) {
+  if (this->fragment.has_value () &&
+      !rule{this->fragment.value ()}.concat (fragmentfn).done ()) {
     return false;
   }
   return true;
@@ -890,8 +894,13 @@ bool parts::operator== (parts const& rhs) const {
 }
 
 std::optional<parts> split (std::string_view const in) {
-  if (parts result;
-      rule{in}.alternative (URI (result), URI_reference (result)).done ()) {
+  if (parts result; rule{in}.concat (URI (result)).done ()) {
+    return result;
+  }
+  return {};
+}
+std::optional<parts> split_reference (std::string_view const in) {
+  if (parts result; rule{in}.concat (URI_reference (result)).done ()) {
     return result;
   }
   return {};
@@ -902,9 +911,14 @@ std::ostream& operator<< (std::ostream& os,
   if (auth.userinfo.has_value ()) {
     os << *auth.userinfo << "@";
   }
-  os << auth.host;
+  if (!auth.host.empty ()) {
+    os << auth.host;
+  }
   if (auth.port.has_value ()) {
-    os << ':' << *auth.port;
+    os << ':';
+    if (!auth.port->empty ()) {
+      os << *auth.port;
+    }
   }
   return os;
 }
@@ -974,7 +988,7 @@ std::optional<parts> join (std::string_view base, std::string_view reference,
   if (!base_parts) {
     return {};
   }
-  auto const reference_parts = split (reference);
+  auto const reference_parts = split_reference (reference);
   if (!reference_parts) {
     return {};
   }

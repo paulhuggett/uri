@@ -16,23 +16,19 @@
 #include <algorithm>
 #include <cassert>
 #include <cctype>
+#include <concepts>
 #include <cstddef>
 #include <iterator>
+#include <ranges>
 #include <string>
 #include <string_view>
 #include <utility>
-
-#if __has_include(<version>)
 #include <version>
-#endif
 
-#if defined(__cpp_concepts) && defined(__cpp_lib_concepts)
-#include <concepts>
-#endif
-
-#if defined(__cpp_lib_ranges) && __cpp_lib_ranges >= 201811L
-#include <ranges>
-#define URI_PCTDECODE_RANGES
+#if !defined(__cpp_lib_ranges)
+#error "Need __cpp_lib_ranges to be available"
+#elif __cpp_lib_ranges < 201911L
+#error "Need __cpp_lib_ranges to __cpp_lib_ranges >= 201911L"
 #endif
 
 namespace uri {
@@ -44,12 +40,7 @@ inline constexpr std::byte bad = std::byte{0b1'0000};
 /// Convert the argument character from a hexadecimal character code
 /// (A-F/a-f/0-9) to an integer in the range 0-15. If the input character is
 /// not a valid hex character code, returns uri::bad.
-#if defined(__cpp_concepts) && defined(__cpp_lib_concepts)
 template <std::integral ValueT>
-#else
-template <typename ValueT,
-          typename = std::enable_if_t<std::is_integral_v<ValueT>>>
-#endif
 constexpr std::byte hex2dec (ValueT const digit) noexcept {
   if (digit >= 'a' && digit <= 'f') {
     return static_cast<std::byte> (static_cast<unsigned> (digit) - ('a' - 10));
@@ -98,16 +89,11 @@ ReferenceType deref (Iterator pos, Iterator end, ValueType* const hex) {
 
 }  // end namespace details
 
-#if defined(__cpp_concepts) && defined(__cpp_lib_concepts)
 template <std::input_iterator InputIterator>
-#else
-template <typename InputIterator>
-#endif
 bool needs_pctdecode (InputIterator first, InputIterator last) {
   return std::find_if (first, last, [] (auto c) { return c == '%'; }) != last;
 }
 
-#ifdef URI_PCTDECODE_RANGES
 template <std::ranges::input_range View>
   requires std::ranges::forward_range<View>
 class pctdecode_view
@@ -144,7 +130,7 @@ private:
   [[no_unique_address]] View base_ = View{};
 };
 
-template <class Range>
+template <typename Range>
 pctdecode_view (Range&&) -> pctdecode_view<std::views::all_t<Range>>;
 
 template <std::ranges::input_range View>
@@ -259,8 +245,6 @@ inline constexpr auto pctdecode = details::pctdecode_range_adaptor{};
 // std::views::transform([] (auto c) { return std::tolower (c); });
 }  // end namespace views
 
-#endif  // URI_PCTDECODE_RANGES
-
 /// pctdecode_iterator is a forward-iterator which will produce characters from
 /// a string-view instance. Each time that it encounters a percent character "%"
 /// followed by two hexadecimal digits, the hexadecimal value is decoded. For
@@ -289,11 +273,6 @@ public:
             "Comparing iterators that refer to different inputs");
     return pos_ == other.pos_ && end_ == other.end_;
   }
-#if __cplusplus < 202002L
-  constexpr bool operator!= (pctdecode_iterator const& other) const noexcept {
-    return !operator== (other);
-  }
-#endif
 
   reference operator* () const {
     return details::deref<reference> (pos_, end_, &hex_);

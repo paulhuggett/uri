@@ -12,9 +12,9 @@
 #===----------------------------------------------------------------------===//
 cmake_minimum_required (VERSION 3.19)
 project (uri CXX)
+
 list (APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-option (URI_CXX17 "Use C++17 (rather than C++20)" No)
 option (URI_FUZZTEST "Enable FuzzTest")
 option (URI_LIBCXX "Use libc++ rather than libstdc++")
 option (URI_WERROR "Compiler warnings are errors")
@@ -31,20 +31,20 @@ set (URI_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
 if (URI_FUZZTEST)
   set (FUZZTEST_FUZZING_MODE On)
   include (FetchContent)
-  set (FUZZTEST_REPO_BRANCH "main" CACHE STRING "FuzzTest repository branch.")
-  message ("Building fuzztest at branch " ${FUZZTEST_REPO_BRANCH})
+  set (FUZZTEST_REPO_BRANCH "1635d42" CACHE STRING "FuzzTest repository branch.")
+  message ("Building fuzztest at tag " ${FUZZTEST_REPO_BRANCH})
   FetchContent_Declare (
     fuzztest
     GIT_REPOSITORY https://github.com/google/fuzztest.git
     GIT_TAG ${FUZZTEST_REPO_BRANCH}
   )
   FetchContent_MakeAvailable (fuzztest)
-  enable_testing ()
   include (GoogleTest)
   fuzztest_setup_fuzzing_flags ()
 else ()
   setup_gtest ()
 endif (URI_FUZZTEST)
+enable_testing ()
 
 add_subdirectory (lib)
 if (TARGET gtest)
