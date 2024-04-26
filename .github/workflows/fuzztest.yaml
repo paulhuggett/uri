@@ -9,7 +9,8 @@ permissions:
 jobs:
   fuzztest:
     name: Fuzz Test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+
     env:
       BUILD_DIR: build_fuzztest
       CLANG_VERSION: 16
@@ -35,19 +36,19 @@ jobs:
           # prevent the llvm.sh script hanging.
           sed -ie "/^add-apt-repository/ s/$/ --yes/" llvm.sh
           chmod +x llvm.sh
-          sudo ./llvm.sh ${CLANG_VERSION}
+          sudo ./llvm.sh "${CLANG_VERSION}"
 
       - name: Configure
         run: |
           mkdir "$BUILD_DIR"
           cmake                                            \
-            -S .                                           \
+            -S "$GITHUB_WORKSPACE"                         \
             -B "$BUILD_DIR"                                \
+            -G "Unix Makefiles"                            \
             -D CMAKE_BUILD_TYPE=RelWithDebug               \
-            -D CMAKE_CXX_COMPILER="clang++-$CLANG_VERSION" \
-            -D CMAKE_C_COMPILER="clang-$CLANG_VERSION"     \
-            -D URI_FUZZTEST=Yes                            \
-            -D URI_LIBCXX=Yes
+            -D "CMAKE_CXX_COMPILER=clang++-$CLANG_VERSION" \
+            -D "CMAKE_C_COMPILER=clang-$CLANG_VERSION"     \
+            -D URI_FUZZTEST=Yes
 
       - name: Build
         run: |

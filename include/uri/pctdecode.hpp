@@ -25,8 +25,10 @@
 #include <utility>
 #include <version>
 
-#if !defined(__cpp_lib_ranges) || __cpp_lib_ranges < 202110L
+#if !defined(__cpp_lib_ranges)
 #error "Need __cpp_lib_ranges to be available"
+#elif __cpp_lib_ranges < 201911L
+#error "Need __cpp_lib_ranges to __cpp_lib_ranges >= 201911L"
 #endif
 
 namespace uri {
