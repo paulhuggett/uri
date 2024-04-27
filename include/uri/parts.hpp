@@ -185,15 +185,12 @@ puny_decoded (Range&& range, OutputIterator out) {
     if (starts_with (view, punycode_prefix)) {
       any_encoded = true;
       std::ranges::advance (first, punycode_prefix.size ());
-
-      std::string label;
-      first = std::ranges::copy (subrange{first, std::ranges::end (view)},
-                                 std::back_inserter (label))
-                .in;
-      auto decode_result = punycode::decode (label);
-      if (auto const* const dr = std::get_if<
-            std::variant_alternative_t<1U, decltype (decode_result)>> (
-            &decode_result)) {
+      auto decode_result =
+        punycode::decode (subrange{first, std::ranges::end (view)});
+      using success_type =
+        std::variant_alternative_t<1U, decltype (decode_result)>;
+      if (auto const* const dr = std::get_if<success_type> (&decode_result)) {
+        first = std::move (dr->in);
         out = std::ranges::copy (
                 dr->str | icubaby::views::transcode<char32_t, char8_t>, out)
                 .out;

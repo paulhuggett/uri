@@ -24,10 +24,7 @@ constexpr auto decoded_success_result_index = std::size_t{1};
 
 // NOLINTNEXTLINE
 TEST (Punycode, AsciiNoPlain) {
-  auto const orig = std::u32string{
-    0x0041,  // U+0041 LATIN CAPITAL LETTER A
-    0x0062,  // U+0062 LATIN SMALL LETTER B
-  };
+  auto const orig = std::u32string{'A', 'b'};
   auto const encoded = "Ab-"sv;
   std::string actual;
   uri::punycode::encode (orig, false, std::back_inserter (actual));
@@ -49,10 +46,7 @@ TEST (Punycode, AsciiNoPlain) {
 
 // NOLINTNEXTLINE
 TEST (Punycode, AsciiWithPlainAllowed) {
-  auto const orig = std::u32string{
-    0x0041,  // U+0041 LATIN CAPITAL LETTER A
-    0x0062,  // U+0062 LATIN SMALL LETTER B
-  };
+  auto const orig = std::u32string{'A', 'b'};
   auto const encoded = "Ab"sv;
   std::string actual;
   uri::punycode::encode (orig, true, std::back_inserter (actual));
@@ -62,8 +56,8 @@ TEST (Punycode, AsciiWithPlainAllowed) {
 // NOLINTNEXTLINE
 TEST (Punycode, Delimiter) {
   auto const orig = std::u32string{
-    0x002C,  // U+002C COMMA
-    0x002D,  // U+002D HYPHEN-MINUS
+    ',',     // U+002C COMMA
+    '-',     // U+002D HYPHEN-MINUS
     0x1BC0,  // U+01BC0 BATAK LETTER A
   };
   auto const encoded = ",--9cr"sv;
@@ -504,7 +498,7 @@ FUZZ_TEST (Punycode, EncodeDecodeRoundTrip).WithDomains (U32String ());
 #if URI_FUZZTEST
 namespace {
 
-std::string::const_iterator ascii_part_end (std::string const& encoded) {
+std::string::const_iterator ascii_part_end (std::string_view const encoded) {
   // NOLINTNEXTLINE(llvm-qualified-auto,readability-qualified-auto)
   auto const rend = std::find (encoded.rbegin (), encoded.rend (), '-');
   // NOLINTNEXTLINE(llvm-qualified-auto,readability-qualified-auto)

@@ -245,6 +245,30 @@ std::variant<std::error_code, std::tuple<std::size_t, Iterator>> decode_vli (
   return std::make_tuple (vli, first);
 }
 
+template <std::bidirectional_iterator Iterator,
+          std::sentinel_for<Iterator> Sentinel, typename T>
+Iterator find_last (Iterator first, Sentinel last, T const& value) {
+  // Find the end of the literal portion (if there is one) by scanning for the
+  // last delimiter.
+  if constexpr (std::bidirectional_iterator<Iterator> &&
+                std::bidirectional_iterator<Sentinel>) {
+    auto const rend = std::make_reverse_iterator (std::next (first));
+    auto const rb = std::find (std::make_reverse_iterator (last), rend, value);
+    return rb == rend ? first : std::prev (rb.base ());
+  } else {
+    Iterator result = first;
+    for (;;) {
+      first = std::ranges::find (first, last, value);
+      if (first == last) {
+        break;
+      }
+      result = first;
+      first = std::next (first);
+    }
+    return result;
+  }
+}
+
 }  // end namespace details
 
 template <std::bidirectional_iterator BidirectionalIterator>
@@ -257,8 +281,9 @@ template <std::bidirectional_iterator BidirectionalIterator>
 using decode_result =
   std::variant<std::error_code, decode_success_result<BidirectionalIterator>>;
 
-template <std::bidirectional_iterator I, std::sentinel_for<I> S>
-decode_result<I> decode (I first, S last) {
+template <std::bidirectional_iterator Iterator,
+          std::sentinel_for<Iterator> Sentinel>
+decode_result<Iterator> decode (Iterator first, Sentinel last) {
   std::u32string output;
   static constexpr auto maxint =
     std::numeric_limits<std::uint_least32_t>::max ();
@@ -269,10 +294,7 @@ decode_result<I> decode (I first, S last) {
 
   // Find the end of the literal portion (if there is one) by scanning for the
   // last delimiter.
-  auto rb = std::find (std::make_reverse_iterator (last),
-                       std::make_reverse_iterator (first), delimiter);
-  // NOLINTNEXTLINE(llvm-qualified-auto,readability-qualified-auto)
-  auto b = rb == std::make_reverse_iterator (first) ? first : rb.base () - 1;
+  auto const b = details::find_last (first, last, delimiter);
   // Copy the plain ASCII part of the string to the output (if any).
   // NOLINTNEXTLINE(llvm-qualified-auto,readability-qualified-auto)
   for (auto pos = first; pos != b; ++pos) {
@@ -321,7 +343,7 @@ decode_result<I> decode (I first, S last) {
     output.insert (i, std::size_t{1}, static_cast<char32_t> (n));
     ++i;
   }
-  return decode_success_result<I>{std::move (output), std::move (in)};
+  return decode_success_result<Iterator>{std::move (output), std::move (in)};
 }
 
 template <std::ranges::bidirectional_range Range>
