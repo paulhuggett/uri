@@ -3,6 +3,7 @@
 BasedOnStyle : Google
 
 AccessModifierOffset    : -2
+ColumnLimit             : 120
 CommentPragmas          :  '^\\.+'
 SpaceBeforeParens       : Always
 SpaceInEmptyParentheses : false
@@ -15,6 +16,5 @@ AllowShortFunctionsOnASingleLine    : InlineOnly
 AllowShortIfStatementsOnASingleLine : false
 AllowShortLambdasOnASingleLine      : true
 AllowShortLoopsOnASingleLine        : false
-ContinuationIndentWidth: 2
+AlwaysBreakTemplateDeclarations     : MultiLine
 IndentCaseLabels                    : false
-

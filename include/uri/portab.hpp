@@ -46,45 +46,6 @@ struct starts_with_fn {
 inline constexpr starts_with_fn starts_with{};
 #endif  // __cpp_lib_ranges_starts_ends_with
 
-#if defined(__cpp_lib_ranges_find_last) && __cpp_lib_ranges_find_last >= 202207L
-inline constexpr auto find_last = std::ranges::find_last;
-#else
-struct find_last_fn {
-  template <std::forward_iterator I, std::sentinel_for<I> S, class T,
-            class Proj = std::identity>
-    requires std::indirect_binary_predicate<std::ranges::equal_to,
-                                            std::projected<I, Proj>, T const*>
-  constexpr std::ranges::subrange<I> operator() (I first, S last,
-                                                 const T& value,
-                                                 Proj proj = {}) const {
-    // Note: if I is mere forward_iterator, we may only go from begin to end.
-    I found{};
-    for (; first != last; ++first) {
-      if (std::invoke (proj, *first) == value) {
-        found = first;
-      }
-    }
-
-    if (found == I{}) {
-      return {first, first};
-    }
-    return {found, std::ranges::next (found, last)};
-  }
-
-  template <std::ranges::forward_range R, class T, class Proj = std::identity>
-    requires std::indirect_binary_predicate<
-      std::ranges::equal_to, std::projected<std::ranges::iterator_t<R>, Proj>,
-      const T*>
-  constexpr std::ranges::borrowed_subrange_t<R> operator() (
-    R&& r, const T& value, Proj proj = {}) const {
-    return this->operator() (std::ranges::begin (r), std::ranges::end (r),
-                             value, std::ref (proj));
-  }
-};
-
-inline constexpr find_last_fn find_last;
-#endif  // __cpp_lib_ranges_find_last
-
 }  // end namespace uri
 
 #endif  // URI_PORTAB_HPP

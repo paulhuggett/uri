@@ -11,6 +11,7 @@
 # SPDX-License-Identifier: MIT
 #===----------------------------------------------------------------------===//
 add_executable (unittest
+  test_find_last.cpp
   test_parts.cpp
   test_pctdecode.cpp
   test_pctencode.cpp

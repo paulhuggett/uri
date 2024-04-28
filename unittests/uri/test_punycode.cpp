@@ -23,6 +23,23 @@ using namespace std::string_view_literals;
 constexpr auto decoded_success_result_index = std::size_t{1};
 
 // NOLINTNEXTLINE
+TEST (Punycode, Empty) {
+  auto const orig = std::u32string{};
+  auto const encoded = ""sv;
+  std::string actual;
+  uri::punycode::encode (orig, false, std::back_inserter (actual));
+  EXPECT_EQ (actual, encoded);
+
+  auto const decoded = uri::punycode::decode (encoded);
+  static_assert (std::is_same_v<
+                 uri::punycode::decode_success_result<std::ranges::iterator_t<std::remove_const_t<decltype (encoded)>>>,
+                 std::variant_alternative_t<decoded_success_result_index, std::remove_const_t<decltype (decoded)>>>);
+
+  ASSERT_EQ (decoded.index (), decoded_success_result_index);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).str, orig);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).in, std::end (encoded));
+}
+// NOLINTNEXTLINE
 TEST (Punycode, AsciiNoPlain) {
   auto const orig = std::u32string{'A', 'b'};
   auto const encoded = "Ab-"sv;
