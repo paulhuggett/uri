@@ -10,7 +10,7 @@
 // See https://github.com/paulhuggett/uri/blob/main/LICENSE for information.
 // SPDX-License-Identifier: MIT
 //===----------------------------------------------------------------------===//
-#include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
 #include <algorithm>
 #include <forward_list>
@@ -82,7 +82,7 @@ protected:
   Container const values_ = {1, 2, 1, 2, 1, 2, 1, 2};
 
   auto pos (int const index) const {
-    auto it = std::begin (values);
+    auto it = std::begin (values_);
     std::advance (it, index);
     return it;
   }
@@ -91,6 +91,10 @@ protected:
 static_assert (std::bidirectional_iterator<std::vector<int>::iterator>);
 static_assert (!std::bidirectional_iterator<std::forward_list<int>::iterator>);
 using FindLastIntContainers = testing::Types<std::vector<int>, std::forward_list<int>>;
+
+int add_three (int const v) {
+  return v + 3;
+}
 
 }  // end anonymous namespace
 
@@ -107,34 +111,34 @@ TYPED_TEST (FindLastInt, NotFound) {
 // NOLINTNEXTLINE
 TYPED_TEST (FindLastInt, One) {
   auto const result = uri::find_last (this->values_, 1);
-  using int_array = int[];
-  EXPECT_TRUE (std::ranges::equal (result, int_array{1, 2}));
+  std::vector<int> const actual{std::begin (result), std::end (result)};
+  EXPECT_THAT (actual, testing::ElementsAre (1, 2));
   EXPECT_EQ (result.begin (), this->pos (6));
 }
 // NOLINTNEXTLINE
 TYPED_TEST (FindLastInt, Two) {
   auto const result = uri::find_last (this->values_, 2);
-  using int_array = int[];
-  EXPECT_TRUE (std::ranges::equal (result, int_array{2}));
+  std::vector<int> const actual{std::begin (result), std::end (result)};
+  EXPECT_THAT (actual, testing::ElementsAre (2));
   EXPECT_EQ (result.begin (), this->pos (7));
 }
 // NOLINTNEXTLINE
 TYPED_TEST (FindLastInt, Three) {
-  auto const result = uri::find_last (this->values_, 3, [] (int const v) { return v + 3; });
+  auto const result = uri::find_last (this->values_, 3, add_three);
   EXPECT_TRUE (std::ranges::empty (result));
   EXPECT_EQ (result.begin (), std::ranges::end (this->values_));
 }
 // NOLINTNEXTLINE
 TYPED_TEST (FindLastInt, Four) {
-  auto const result = uri::find_last (this->values_, 4, [] (int const v) { return v + 3; });
-  using int_array = int[];
-  EXPECT_TRUE (std::ranges::equal (result, int_array{1, 2}));
+  auto const result = uri::find_last (this->values_, 4, add_three);
+  std::vector<int> const actual{std::begin (result), std::end (result)};
+  EXPECT_THAT (actual, testing::ElementsAre (1, 2));
   EXPECT_EQ (result.begin (), this->pos (6));
 }
 // NOLINTNEXTLINE
 TYPED_TEST (FindLastInt, Five) {
-  auto const result = uri::find_last (this->values_, 5, [] (int const v) { return v + 3; });
-  using int_array = int[];
-  EXPECT_TRUE (std::ranges::equal (result, int_array{2}));
+  auto const result = uri::find_last (this->values_, 5, add_three);
+  std::vector<int> const actual{std::begin (result), std::end (result)};
+  EXPECT_THAT (actual, testing::ElementsAre (2));
   EXPECT_EQ (result.begin (), this->pos (7));
 }
