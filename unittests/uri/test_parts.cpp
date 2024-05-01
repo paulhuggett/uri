@@ -80,27 +80,17 @@ TEST (Parts, PunyEncodedMuchenDotGrinningFace) {
 
 // NOLINTNEXTLINE
 TEST (Parts, PunyEncodedSizeMuchenDe) {
-  std::u32string const input{
-    'M',
-    static_cast<char32_t> (
-      0x00FC),  // U+00FC LATIN SMALL LETTER U WITH DIAERESIS
-    'n',
-    'c',
-    'h',
-    'e',
-    'n',
-    '.',
-    'd',
-    'e'};
+  auto const latin_small_letter_u_with_diaeresis = char32_t{0x00FC};
+  std::u32string const input{'M', latin_small_letter_u_with_diaeresis, 'n', 'c', 'h', 'e', 'n', '.', 'd', 'e'};
   EXPECT_EQ (uri::details::puny_encoded_size (input), std::size_t{17});
 }
 
 // NOLINTNEXTLINE
 TEST (Parts, PunyEncodedMunchenGrinningFace) {
-  auto* const str = u8"München.😀";
+  std::vector<char8_t> const input{'M', 0xC3, 0xBC, 'n', 'c', 'h', 'e', 'n', '.', 0xF0, 0x9F, 0x98, 0x80};
   uri::parts p;
   using auth = struct uri::parts::authority;
-  p.authority = auth{std::nullopt, std::bit_cast<char const*> (str), std::nullopt};
+  p.authority = auth{std::nullopt, std::bit_cast<char const*> (input.data ()), std::nullopt};
   std::vector<char> store;
   uri::parts const encoded_parts = uri::encode (store, p);
   EXPECT_EQ (encoded_parts.authority->host, "xn--Mnchen-3ya.xn--e28h");
