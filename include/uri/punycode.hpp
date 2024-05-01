@@ -151,6 +151,7 @@ std::tuple<std::ranges::iterator_t<Range>, OutputIterator, bool> encode (
   }
   details::sort_and_remove_duplicates (non_basic);
   auto i = num_basics;
+  // Add a delimiter if we have at least one basic code point.
   if (num_basics > 0) {
     *(output++) = details::delimiter;
   }
