@@ -29,6 +29,7 @@
 #include <ranges>
 #endif
 
+#include "uri/find_last.hpp"
 #include "uri/portab.hpp"
 
 namespace uri::punycode {
@@ -150,6 +151,7 @@ std::tuple<std::ranges::iterator_t<Range>, OutputIterator, bool> encode (
   }
   details::sort_and_remove_duplicates (non_basic);
   auto i = num_basics;
+  // Add a delimiter if we have at least one basic code point.
   if (num_basics > 0) {
     *(output++) = details::delimiter;
   }
@@ -178,6 +180,14 @@ std::tuple<std::ranges::iterator_t<Range>, OutputIterator, bool> encode (
   return std::make_tuple (std::move (in), std::move (output),
                           !non_basic.empty ());
 }
+
+template <std::bidirectional_iterator BidirectionalIterator> struct decode_success_result {
+  std::u32string str;
+  BidirectionalIterator in;
+};
+
+template <std::bidirectional_iterator BidirectionalIterator>
+using decode_result = std::variant<std::error_code, decode_success_result<BidirectionalIterator>>;
 
 namespace details {
 
@@ -245,83 +255,85 @@ std::variant<std::error_code, std::tuple<std::size_t, Iterator>> decode_vli (
   return std::make_tuple (vli, first);
 }
 
-}  // end namespace details
-
-template <std::bidirectional_iterator BidirectionalIterator>
-struct decode_success_result {
-  std::u32string str;
-  BidirectionalIterator in;
-};
-
-template <std::bidirectional_iterator BidirectionalIterator>
-using decode_result =
-  std::variant<std::error_code, decode_success_result<BidirectionalIterator>>;
-
-template <std::bidirectional_iterator I, std::sentinel_for<I> S>
-decode_result<I> decode (I first, S last) {
-  std::u32string output;
-  static constexpr auto maxint =
-    std::numeric_limits<std::uint_least32_t>::max ();
-  using details::adapt;
-  using details::delimiter;
-  using details::initial_bias;
-  using details::initial_n;
-
+template <std::bidirectional_iterator Iterator, std::sentinel_for<Iterator> Sentinel, typename OutputIterator>
+std::variant<std::error_code, Iterator> copy_plain_ascii_part (Iterator first, Sentinel last, OutputIterator out) {
   // Find the end of the literal portion (if there is one) by scanning for the
   // last delimiter.
-  auto rb = std::find (std::make_reverse_iterator (last),
-                       std::make_reverse_iterator (first), delimiter);
-  // NOLINTNEXTLINE(llvm-qualified-auto,readability-qualified-auto)
-  auto b = rb == std::make_reverse_iterator (first) ? first : rb.base () - 1;
+  auto const encoded_range = find_last (first, last, delimiter);
+  if (encoded_range.empty ()) {
+    return first;
+  }
   // Copy the plain ASCII part of the string to the output (if any).
   // NOLINTNEXTLINE(llvm-qualified-auto,readability-qualified-auto)
-  for (auto pos = first; pos != b; ++pos) {
+  for (auto pos = first, end = encoded_range.begin (); pos != end; ++pos) {
     auto const code_point = static_cast<char32_t> (*pos);
     if (!details::is_basic_code_point (code_point)) {
       return make_error_code (decode_error_code::bad_input);
     }
-    output.push_back (code_point);
+    *(out++) = code_point;
   }
 
+  return std::next (encoded_range.begin ());
+}
+
+template <std::bidirectional_iterator Iterator, std::sentinel_for<Iterator> Sentinel>
+decode_result<Iterator> decode_loop (Iterator in, Sentinel last, std::u32string&& output) {
   // The main decoding loop.
   auto n = initial_n;
-  auto i = std::size_t{0};
+  auto index = std::size_t{0};
   auto bias = initial_bias;
-  // Start just after the last delimiter if any basic code points were
-  // copied; start at the beginning otherwise. *in is the next character to be
-  // consumed.
-  // NOLINTNEXTLINE(llvm-qualified-auto,readability-qualified-auto)
-  auto in = b != first ? std::next (b) : first;
+
   while (in != last) {
     // Decode a generalized variable-length integer into delta, which gets added
-    // to i. The overflow checking is easier if we increase i as we go, then
+    // to 'index'. The overflow checking is easier if we increase index as we go, then
     // subtract off its starting value at the end to obtain delta.
-    auto const decode_res = details::decode_vli (in, last, i, bias);
+    auto const decode_res = details::decode_vli (in, last, index, bias);
     static_assert (
-      std::is_same_v<std::error_code,
-                     std::remove_const_t<
-                       std::variant_alternative_t<0, decltype (decode_res)>>>);
-    if (auto const* err = std::get_if<std::error_code> (&decode_res)) {
+        std::is_same_v<std::error_code, std::remove_const_t<std::variant_alternative_t<0, decltype (decode_res)>>>);
+    if (auto const* const err = std::get_if<std::error_code> (&decode_res)) {
       return *err;
     }
-    auto const old_vli = i;
-    auto output_length = output.length ();
-    std::tie (i, in) = std::get<1> (decode_res);
-    bias = adapt (i - old_vli, output_length + 1, old_vli == 0);
+    auto const old_vli = index;
+    auto output_length = output.length () + 1;
+    std::tie (index, in) = std::get<1> (decode_res);
+    bias = adapt (index - old_vli, output_length, old_vli == 0);
 
-    // i was supposed to wrap around from out+1 to 0, incrementing n each time,
+    // index was supposed to wrap around from out+1 to 0, incrementing n each time,
     // so we'll fix that now.
-    if (i / (output_length + 1) > maxint - n) {
+    if (index / output_length > std::numeric_limits<std::uint_least32_t>::max () - n) {
       return make_error_code (decode_error_code::overflow);
     }
-    n += i / (output_length + 1);
-    i %= (output_length + 1);
+    n += index / output_length;
+    index %= output_length;
 
     // Insert n into the output at position i.
-    output.insert (i, std::size_t{1}, static_cast<char32_t> (n));
-    ++i;
+    output.insert (index, std::size_t{1}, static_cast<char32_t> (n));
+    ++index;
   }
-  return decode_success_result<I>{std::move (output), std::move (in)};
+  return decode_success_result<Iterator>{std::move (output), std::move (in)};
+}
+
+}  // end namespace details
+
+/// A type that is always false. Used to improve the failure mesages from
+/// static_assert().
+template <typename... T> [[maybe_unused]] constexpr bool always_false = false;
+
+template <std::bidirectional_iterator Iterator, std::sentinel_for<Iterator> Sentinel>
+decode_result<Iterator> decode (Iterator first, Sentinel last) {
+  std::u32string output;
+  return std::visit (
+      [&last, &output]<typename Arg> (Arg&& arg) {
+        using T = std::decay_t<Arg>;
+        if constexpr (std::is_same_v<T, std::error_code>) {
+          return decode_result<Iterator> (std::forward<Arg> (arg));
+        } else if constexpr (std::is_same_v<T, Iterator>) {
+          return details::decode_loop (arg, last, std::move (output));
+        } else {
+          static_assert (always_false<T>, "non-exhaustive visitor!");
+        }
+      },
+      details::copy_plain_ascii_part (first, last, std::back_inserter (output)));
 }
 
 template <std::ranges::bidirectional_range Range>

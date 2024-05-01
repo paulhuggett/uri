@@ -23,11 +23,25 @@ using namespace std::string_view_literals;
 constexpr auto decoded_success_result_index = std::size_t{1};
 
 // NOLINTNEXTLINE
+TEST (Punycode, Empty) {
+  auto const orig = std::u32string{};
+  auto const encoded = ""sv;
+  std::string actual;
+  uri::punycode::encode (orig, false, std::back_inserter (actual));
+  EXPECT_EQ (actual, encoded);
+
+  auto const decoded = uri::punycode::decode (encoded);
+  static_assert (std::is_same_v<
+                 uri::punycode::decode_success_result<std::ranges::iterator_t<std::remove_const_t<decltype (encoded)>>>,
+                 std::variant_alternative_t<decoded_success_result_index, std::remove_const_t<decltype (decoded)>>>);
+
+  ASSERT_EQ (decoded.index (), decoded_success_result_index);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).str, orig);
+  EXPECT_EQ (std::get<decoded_success_result_index> (decoded).in, std::end (encoded));
+}
+// NOLINTNEXTLINE
 TEST (Punycode, AsciiNoPlain) {
-  auto const orig = std::u32string{
-    0x0041,  // U+0041 LATIN CAPITAL LETTER A
-    0x0062,  // U+0062 LATIN SMALL LETTER B
-  };
+  auto const orig = std::u32string{'A', 'b'};
   auto const encoded = "Ab-"sv;
   std::string actual;
   uri::punycode::encode (orig, false, std::back_inserter (actual));
@@ -49,10 +63,7 @@ TEST (Punycode, AsciiNoPlain) {
 
 // NOLINTNEXTLINE
 TEST (Punycode, AsciiWithPlainAllowed) {
-  auto const orig = std::u32string{
-    0x0041,  // U+0041 LATIN CAPITAL LETTER A
-    0x0062,  // U+0062 LATIN SMALL LETTER B
-  };
+  auto const orig = std::u32string{'A', 'b'};
   auto const encoded = "Ab"sv;
   std::string actual;
   uri::punycode::encode (orig, true, std::back_inserter (actual));
@@ -62,8 +73,8 @@ TEST (Punycode, AsciiWithPlainAllowed) {
 // NOLINTNEXTLINE
 TEST (Punycode, Delimiter) {
   auto const orig = std::u32string{
-    0x002C,  // U+002C COMMA
-    0x002D,  // U+002D HYPHEN-MINUS
+    ',',     // U+002C COMMA
+    '-',     // U+002D HYPHEN-MINUS
     0x1BC0,  // U+01BC0 BATAK LETTER A
   };
   auto const encoded = ",--9cr"sv;
@@ -501,17 +512,18 @@ void EncodeDecodeRoundTrip (std::u32string const& s) {
 FUZZ_TEST (Punycode, EncodeDecodeRoundTrip).WithDomains (U32String ());
 #endif  // URI_FUZZTEST
 
-#if URI_FUZZTEST
 namespace {
 
-std::string::const_iterator ascii_part_end (std::string const& encoded) {
-  // NOLINTNEXTLINE(llvm-qualified-auto,readability-qualified-auto)
-  auto const rend = std::find (encoded.rbegin (), encoded.rend (), '-');
-  // NOLINTNEXTLINE(llvm-qualified-auto,readability-qualified-auto)
-  return rend == encoded.rend () ? encoded.begin () : rend.base () - 1;
+constexpr std::string_view::const_iterator ascii_part_end (std::string_view const encoded) {
+  auto const r = uri::find_last (encoded, '-');
+  return r.empty () ? encoded.begin () : r.begin ();
 }
 
-void DecodeEncodeRoundTrip (std::string const& original) {
+void DecodeEncodeRoundTrip (std::string_view original) {
+  // A single leading delimiter can be safely ignored.
+  if (std::ranges::count (original, '-') == 1 && original.starts_with ('-')) {
+    original.remove_prefix (1);
+  }
   auto const res = uri::punycode::decode (original);
   if (res.index () == decoded_success_result_index) {
     std::string encoded;
@@ -519,6 +531,7 @@ void DecodeEncodeRoundTrip (std::string const& original) {
                            false, std::back_inserter (encoded));
 
     auto const ascii_end = ascii_part_end (original);
+    assert (ascii_end >= original.begin () && ascii_end <= original.end ());
     ASSERT_EQ (original.size (), encoded.size ());
     EXPECT_TRUE (
       std::equal (std::begin (original), ascii_end, std::begin (encoded)));
@@ -531,6 +544,24 @@ void DecodeEncodeRoundTrip (std::string const& original) {
 
 }  // end anonymous namespace
 
+#if URI_FUZZTEST
 // NOLINTNEXTLINE
 FUZZ_TEST (Punycode, DecodeEncodeRoundTrip);
 #endif  // URI_FUZZTEST
+
+// NOLINTNEXTLINE
+TEST (Punycode, DecodeEncodeRoundTripEmpty) {
+  DecodeEncodeRoundTrip ("");
+}
+// NOLINTNEXTLINE
+TEST (Punycode, DecodeEncodeRoundTripDash) {
+  DecodeEncodeRoundTrip ("-");
+}
+// NOLINTNEXTLINE
+TEST (Punycode, DecodeEncodeRoundTripLeadingDelimiter) {
+  DecodeEncodeRoundTrip ("-Ssu");
+}
+// NOLINTNEXTLINE
+TEST (Punycode, DecodeEncodeRoundTripTrailingDelimiter) {
+  DecodeEncodeRoundTrip ("hello-");
+}

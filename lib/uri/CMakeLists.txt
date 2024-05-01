@@ -12,6 +12,7 @@
 #===----------------------------------------------------------------------===//
 set (URI_INCLUDE_DIR "${URI_ROOT}/include")
 add_library (uri STATIC
+    "${URI_INCLUDE_DIR}/uri/find_last.hpp"
     "${URI_INCLUDE_DIR}/uri/icubaby.hpp"
     "${URI_INCLUDE_DIR}/uri/parts.hpp"
     "${URI_INCLUDE_DIR}/uri/pctdecode.hpp"
