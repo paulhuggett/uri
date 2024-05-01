@@ -24,14 +24,14 @@
 namespace uri {
 
 enum class parts_field : std::uint_least8_t {
-  scheme,
-  userinfo,
-  host,
-  port,
-  path,
-  query,
-  fragment,
-  last
+  scheme = 0,
+  userinfo = 1,
+  host = 2,
+  port = 3,
+  query = 4,
+  fragment = 5,
+  path = 6,
+  last = 32
 };
 
 constexpr pctencode_set pctencode_set_from_parts_field (
@@ -48,6 +48,8 @@ constexpr pctencode_set pctencode_set_from_parts_field (
   default: return pctencode_set::none;
   }
 }
+
+inline constexpr auto idna_prefix = std::string_view{"xn--"};
 
 namespace details {
 
@@ -71,34 +73,35 @@ std::size_t pct_encoded_size (std::string_view str, pctencode_set encodeset);
 std::size_t pct_decoded_size (std::string_view str);
 
 template <typename Function>
-  requires std::is_invocable_r_v<std::string_view, Function, std::string_view,
-                                 parts_field>
+  requires std::is_invocable_r_v<std::string_view, Function, std::string_view, unsigned, parts_field>
 void parts_strings (parts& parts, Function const function) {
   if (parts.scheme.has_value () && parts.scheme->data () != nullptr) {
-    parts.scheme = function (*parts.scheme, parts_field::scheme);
+    parts.scheme = function (*parts.scheme, 0U, parts_field::scheme);
   }
+  auto count = 0U;
   for (auto& segment : parts.path.segments) {
     if (segment.data () != nullptr) {
-      segment = function (segment, parts_field::path);
+      segment = function (segment, count, parts_field::path);
+      ++count;
     }
   }
   if (parts.authority.has_value ()) {
     auto& auth = *parts.authority;
     if (auth.userinfo.has_value () && auth.userinfo->data () != nullptr) {
-      auth.userinfo = function (*auth.userinfo, parts_field::userinfo);
+      auth.userinfo = function (*auth.userinfo, 0U, parts_field::userinfo);
     }
     if (auth.host.data () != nullptr) {
-      auth.host = function (auth.host, parts_field::host);
+      auth.host = function (auth.host, 0U, parts_field::host);
     }
     if (auth.port.has_value () && auth.port->data () != nullptr) {
-      auth.port = function (*auth.port, parts_field::port);
+      auth.port = function (*auth.port, 0U, parts_field::port);
     }
   }
   if (parts.query.has_value () && parts.query->data () != nullptr) {
-    parts.query = function (*parts.query, parts_field::query);
+    parts.query = function (*parts.query, 0U, parts_field::query);
   }
   if (parts.fragment.has_value () && parts.fragment->data () != nullptr) {
-    parts.fragment = function (*parts.fragment, parts_field::fragment);
+    parts.fragment = function (*parts.fragment, 0U, parts_field::fragment);
   }
 }
 
@@ -111,8 +114,6 @@ struct puny_encoded_result {
 constexpr inline bool is_not_dot (char32_t const code_point) {
   return code_point != '.';
 }
-
-inline constexpr auto punycode_prefix = std::string_view{"xn--"};
 
 template <std::ranges::input_range Range,
           std::output_iterator<char> OutputIterator>
@@ -132,7 +133,7 @@ puny_encoded_result<OutputIterator> puny_encoded (Range&& range,
     auto const& [in, _, any_non_ascii] =
       punycode::encode (view, true, std::back_inserter (segment));
     if (any_non_ascii) {
-      out = std::ranges::copy (punycode_prefix, out).out;
+      out = std::ranges::copy (idna_prefix, out).out;
       any_needed = true;
     }
     out = std::ranges::copy (segment, out).out;
@@ -182,9 +183,9 @@ puny_decoded (Range&& range, OutputIterator out) {
   auto first = std::ranges::begin (view);
 
   for (;;) {
-    if (starts_with (view, punycode_prefix)) {
+    if (starts_with (view, idna_prefix)) {
       any_encoded = true;
-      std::ranges::advance (first, punycode_prefix.size ());
+      std::ranges::advance (first, idna_prefix.size ());
       auto decode_result =
         punycode::decode (subrange{first, std::ranges::end (view)});
       using success_type =
@@ -243,69 +244,59 @@ parts encode (VectorContainer& store, parts const& p) {
 
   parts result = p;
   store.clear ();
-  auto convert_to_utf32 = [] (auto const& r) {
-    return r | std::views::transform ([] (char const c) {
-             return static_cast<char8_t> (c);
-           }) |
+  auto const convert_to_utf32 = [] (auto const& r) {
+    return r | std::views::transform ([] (char const c) { return static_cast<char8_t> (c); }) |
            icubaby::views::transcode<char8_t, char32_t>;
   };
 
   auto required_size = std::size_t{0};
-  details::parts_strings (
-    result, [&required_size, &convert_to_utf32, &needs_encoding] (
-              std::string_view const str, parts_field const field) {
-      assert (str.data () != nullptr);
-      auto const extra = field == parts_field::host
+  details::parts_strings (result, [&required_size, &convert_to_utf32, &needs_encoding] (
+                                      std::string_view const str, unsigned const index, parts_field const field) {
+    assert (str.data () != nullptr && "String data field was null");
+    assert ((index == 0 || field == parts_field::path) && "Unexpected non-zero index");
+    auto const extra = field == parts_field::host
                            ? details::puny_encoded_size (convert_to_utf32 (str))
-                           : details::pct_encoded_size (
-                               str, pctencode_set_from_parts_field (field));
-      assert (static_cast<std::size_t> (field) < needs_encoding.size ());
-      auto const pos = static_cast<pft> (field);
+                           : details::pct_encoded_size (str, pctencode_set_from_parts_field (field));
+    if (auto const pos = static_cast<pft> (field) + index; pos < needs_encoding.size ()) {
       needs_encoding.set (pos, needs_encoding.test (pos) || extra != 0);
-      required_size += extra;
-      return str;
-    });
+    }
+    required_size += extra;
+    return str;
+  });
   store.reserve (required_size);
 
   details::parts_strings (result, [&store, &convert_to_utf32, &needs_encoding] (
-                                    std::string_view const str,
-                                    parts_field const field) {
-    assert (str.data () != nullptr);
-    assert (static_cast<std::size_t> (field) < needs_encoding.size ());
-    if (!needs_encoding.test (static_cast<pft> (field))) {
+                                      std::string_view const str, unsigned const index, parts_field const field) {
+    assert (str.data () != nullptr && "String data field was null");
+    assert ((index == 0 || field == parts_field::path) && "Unexpected non-zero index");
+    auto const needs_encoding_pos = static_cast<pft> (field) + index;
+    if (needs_encoding_pos < needs_encoding.size () && !needs_encoding.test (needs_encoding_pos)) {
       return str;
     }
 
     auto const original_size = store.size ();
     if (field == parts_field::host) {
-      assert (details::puny_encoded_size (convert_to_utf32 (str)) != 0);
-      assert (store.capacity () >= original_size + details::puny_encoded_size (
-                                                     convert_to_utf32 (str)) &&
-              "store capacity is insufficient");
-      details::puny_encoded (convert_to_utf32 (str),
-                             std::back_inserter (store));
-      assert (original_size +
-                details::puny_encoded_size (convert_to_utf32 (str)) ==
-              store.size ());
+      assert (details::puny_encoded_size (convert_to_utf32 (str)) != 0 &&
+              "Host field said it needs to be encoded but doesn't");
+      assert (store.capacity () >= original_size + details::puny_encoded_size (convert_to_utf32 (str)) &&
+              "Store capacity is insufficient");
+      details::puny_encoded (convert_to_utf32 (str), std::back_inserter (store));
+      assert (original_size + details::puny_encoded_size (convert_to_utf32 (str)) == store.size () &&
+              "Store size was not as expected");
     } else {
       auto const es = pctencode_set_from_parts_field (field);
       assert (field == parts_field::path || needs_pctencode (str, es));
-      if (field == parts_field::path && !needs_pctencode (str, es)) {
+      if (needs_encoding_pos >= needs_encoding.size () && !needs_pctencode (str, es)) {
         return str;
       }
-      assert (store.capacity () >=
-                original_size + details::pct_encoded_size (str, es) &&
-              "store capacity is insufficient");
-      pctencode (std::begin (str), std::end (str), std::back_inserter (store),
-                 es);
-      assert (original_size + details::pct_encoded_size (str, es) ==
-              store.size ());
+      assert (store.capacity () >= original_size + details::pct_encoded_size (str, es) &&
+              "Store capacity is insufficient");
+      pctencode (std::begin (str), std::end (str), std::back_inserter (store), es);
+      assert (original_size + details::pct_encoded_size (str, es) == store.size () && "Store size was not as expected");
     }
-    return std::string_view{store.data () + original_size,
-                            store.size () - original_size};
+    return std::string_view{store.data () + original_size, store.size () - original_size};
   });
-  assert (required_size == store.size () &&
-          "Expected store required size does not match actual");
+  assert (required_size == store.size () && "Expected store required size does not match actual");
   return result;
 }
 
@@ -322,55 +313,63 @@ std::variant<std::error_code, parts> decode (VectorContainer& store,
 
   auto required_size = std::size_t{0};
   std::error_code error;
-  details::parts_strings (
-    result, [&required_size, &error, &needs_encoding] (
-              std::string_view const str, parts_field const field) {
-      assert (str.data () != nullptr);
-      if (error) {
-        return str;
-      }
-      auto extra = std::size_t{0};
-      if (field == parts_field::host) {
-        auto const pds_result = details::puny_decoded_size (str);
-        if (auto const* const size = std::get_if<std::size_t> (&pds_result)) {
-          extra = *size;
-        } else if (auto const* const erc =
-                     std::get_if<std::error_code> (&pds_result)) {
-          error = *erc;
-        } else {
-          error = make_error_code (std::errc::invalid_argument);
-        }
-      } else {
-        extra = details::pct_decoded_size (str);
-      }
-      needs_encoding.set (static_cast<pft> (field), extra != 0);
-      required_size += extra;
+  details::parts_strings (result, [&required_size, &error, &needs_encoding] (
+                                      std::string_view const str, unsigned const index, parts_field const field) {
+    assert (str.data () != nullptr && "String data field was null");
+    assert ((index == 0 || field == parts_field::path) && "Unexpected non-zero index");
+    if (error) {
       return str;
-    });
+    }
+
+    auto extra = std::size_t{0};
+    if (field == parts_field::host) {
+      auto const pds_result = details::puny_decoded_size (str);
+      if (auto const* const size = std::get_if<std::size_t> (&pds_result)) {
+        extra = *size;
+      } else if (auto const* const erc = std::get_if<std::error_code> (&pds_result)) {
+        error = *erc;
+      } else {
+        error = make_error_code (std::errc::invalid_argument);
+      }
+    } else {
+      extra = details::pct_decoded_size (str);
+    }
+
+    if (auto const pos = static_cast<pft> (field) + index; pos < needs_encoding.size ()) {
+      needs_encoding.set (pos, needs_encoding.test (pos) || extra != 0);
+    }
+    required_size += extra;
+    return str;
+  });
   store.reserve (required_size);
   if (error) {
     return error;
   }
 
   details::parts_strings (
-    result, [&store, &needs_encoding] (std::string_view const str,
-                                       parts_field const field) {
-      assert (str.data () != nullptr);
-      assert (static_cast<std::size_t> (field) < needs_encoding.size ());
-      if (!needs_encoding.test (static_cast<pft> (field))) {
-        return str;
-      }
-      auto const original_size = store.size ();
-      if (field == parts_field::host) {
-        details::puny_decoded (str, std::back_inserter (store));
-      } else {
-        std::ranges::copy (str | views::pctdecode, std::back_inserter (store));
-      }
-      return std::string_view{store.data () + original_size,
-                              store.size () - original_size};
-    });
-  assert (required_size == store.size () &&
-          "Expected store required size does not match actual");
+      result, [&store, &needs_encoding] (std::string_view const str, unsigned const index, parts_field const field) {
+        assert (str.data () != nullptr && "String data field was null");
+        assert ((index == 0 || field == parts_field::path) && "Unexpected non-zero index");
+        assert (static_cast<std::size_t> (field) < needs_encoding.size ());
+
+        auto const needs_encoding_pos = static_cast<pft> (field) + index;
+        if (needs_encoding_pos < needs_encoding.size () && !needs_encoding.test (needs_encoding_pos)) {
+          return str;
+        }
+
+        auto const original_size = store.size ();
+        if (field == parts_field::host) {
+          details::puny_decoded (str, std::back_inserter (store));
+        } else {
+          if (needs_encoding_pos >= needs_encoding.size () && details::pct_decoded_size (str) == 0) {
+            return str;
+          }
+          assert (details::pct_decoded_size (str) > 0);
+          std::ranges::copy (str | views::pctdecode, std::back_inserter (store));
+        }
+        return std::string_view{store.data () + original_size, store.size () - original_size};
+      });
+  assert (required_size == store.size () && "Expected store required size does not match actual");
   return result;
 }
 
