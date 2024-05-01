@@ -82,7 +82,7 @@ protected:
   Container const values_ = {1, 2, 1, 2, 1, 2, 1, 2};
 
   auto pos (int const index) const {
-    auto it = values_.begin ();
+    auto it = std::begin (values);
     std::advance (it, index);
     return it;
   }
