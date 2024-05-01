@@ -40,6 +40,29 @@ constexpr std::ranges::subrange<Iterator> find_last_forward (Iterator first, Sen
   return {*found, std::ranges::next (*found, last)};
 }
 
+template <std::bidirectional_iterator Iterator, std::sentinel_for<Iterator> Sentinel, typename T,
+          typename Proj = std::identity>
+  requires std::indirect_binary_predicate<std::ranges::equal_to, std::projected<Iterator, Proj>, T const *>
+constexpr std::ranges::subrange<Iterator> find_last_bidi (Iterator const first, Sentinel const last, T const &value,
+                                                          Proj const proj = {}) {
+  if (first == last) {
+    return {last, last};
+  }
+  auto const rend = std::make_reverse_iterator (first);
+  auto const rb = std::ranges::find (std::make_reverse_iterator (last), rend, value, proj);
+  if (rb == rend) {
+    auto const end = std::ranges::next (rb.base (), last);
+    return {end, end};
+  }
+  auto const result = std::ranges::subrange<Iterator>{std::prev (rb.base ()), last};
+#ifndef NDEBUG
+  auto const forward_result = details::find_last_forward (first, last, value, proj);
+  assert (forward_result.begin () == result.begin ());
+  assert (forward_result.end () == result.end ());
+#endif
+  return result;
+}
+
 }  // end namespace details
 
 #if defined(__cpp_lib_ranges_find_last) && __cpp_lib_ranges_find_last >= 202207L
@@ -51,19 +74,10 @@ struct find_last_fn {
   template <std::forward_iterator Iterator, std::sentinel_for<Iterator> Sentinel, typename T,
             typename Proj = std::identity>
     requires std::indirect_binary_predicate<std::ranges::equal_to, std::projected<Iterator, Proj>, T const *>
-  constexpr std::ranges::subrange<Iterator> operator() (Iterator first, Sentinel last, T const &value,
-                                                        Proj proj = {}) const {
+  constexpr std::ranges::subrange<Iterator> operator() (Iterator const first, Sentinel const last, T const &value,
+                                                        Proj const proj = {}) const {
     if constexpr (std::bidirectional_iterator<Iterator> && std::bidirectional_iterator<Sentinel>) {
-      if (first == last) {
-        return {last, last};
-      }
-      auto const rend = std::make_reverse_iterator (first);
-      auto const rb = std::ranges::find (std::make_reverse_iterator (last), rend, value, proj);
-      if (rb == rend) {
-        auto const end = std::ranges::next (rb.base (), last);
-        return {end, end};
-      }
-      return {std::prev (rb.base ()), last};
+      return details::find_last_bidi (first, last, value, proj);
     } else {
       return details::find_last_forward (first, last, value, proj);
     }
