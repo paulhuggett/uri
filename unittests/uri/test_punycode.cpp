@@ -514,11 +514,9 @@ FUZZ_TEST (Punycode, EncodeDecodeRoundTrip).WithDomains (U32String ());
 
 namespace {
 
-std::string_view::const_iterator ascii_part_end (std::string_view const encoded) {
-  // NOLINTNEXTLINE(llvm-qualified-auto,readability-qualified-auto)
-  auto const rend = std::find (encoded.rbegin (), encoded.rend (), '-');
-  // NOLINTNEXTLINE(llvm-qualified-auto,readability-qualified-auto)
-  return rend == encoded.rend () ? encoded.begin () : rend.base () - 1;
+constexpr std::string_view::const_iterator ascii_part_end (std::string_view const encoded) {
+  auto const r = uri::find_last (encoded, '-');
+  return r.empty () ? encoded.begin () : r.begin ();
 }
 
 void DecodeEncodeRoundTrip (std::string_view original) {
@@ -533,6 +531,7 @@ void DecodeEncodeRoundTrip (std::string_view original) {
                            false, std::back_inserter (encoded));
 
     auto const ascii_end = ascii_part_end (original);
+    assert (ascii_end >= original.begin () && ascii_end <= original.end ());
     ASSERT_EQ (original.size (), encoded.size ());
     EXPECT_TRUE (
       std::equal (std::begin (original), ascii_end, std::begin (encoded)));
@@ -550,6 +549,19 @@ void DecodeEncodeRoundTrip (std::string_view original) {
 FUZZ_TEST (Punycode, DecodeEncodeRoundTrip);
 #endif  // URI_FUZZTEST
 
-TEST (Punycode, DecodeEncodeRoundTripRegression) {
+// NOLINTNEXTLINE
+TEST (Punycode, DecodeEncodeRoundTripEmpty) {
+  DecodeEncodeRoundTrip ("");
+}
+// NOLINTNEXTLINE
+TEST (Punycode, DecodeEncodeRoundTripDash) {
+  DecodeEncodeRoundTrip ("-");
+}
+// NOLINTNEXTLINE
+TEST (Punycode, DecodeEncodeRoundTripLeadingDelimiter) {
   DecodeEncodeRoundTrip ("-Ssu");
+}
+// NOLINTNEXTLINE
+TEST (Punycode, DecodeEncodeRoundTripTrailingDelimiter) {
+  DecodeEncodeRoundTrip ("hello-");
 }
