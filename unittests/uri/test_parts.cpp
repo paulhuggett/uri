@@ -87,7 +87,13 @@ TEST (Parts, PunyEncodedSizeMuchenDe) {
 
 // NOLINTNEXTLINE
 TEST (Parts, PunyEncodedMunchenGrinningFace) {
-  std::vector<char8_t> const input{'M', 0xC3, 0xBC, 'n', 'c', 'h', 'e', 'n', '.', 0xF0, 0x9F, 0x98, 0x80};
+  auto const latin_small_letter_u_with_diaeresis = char32_t{0x00FC};
+  auto const grinning_face = char32_t{0x1F600};
+  std::u32string const input32{'M', latin_small_letter_u_with_diaeresis, 'n', 'c', 'h', 'e', 'n', '.', grinning_face};
+  std::string input;
+  std::ranges::copy (input32 | icubaby::views::transcode<char32_t, char8_t> |
+                         std::views::transform ([] (char8_t const v) { return static_cast<char> (v); }),
+                     std::back_inserter (input));
   uri::parts p;
   using auth = struct uri::parts::authority;
   p.authority = auth{std::nullopt, std::bit_cast<char const*> (input.data ()), std::nullopt};
