@@ -1,12 +1,21 @@
-#ifndef URI_PORTAB_HPP
-#define URI_PORTAB_HPP
+//===- include/uri/starts_with.hpp ------------------------*- mode: C++ -*-===//
+//*      _             _                  _ _   _      *
+//*  ___| |_ __ _ _ __| |_ ___  __      _(_) |_| |__   *
+//* / __| __/ _` | '__| __/ __| \ \ /\ / / | __| '_ \  *
+//* \__ \ || (_| | |  | |_\__ \  \ V  V /| | |_| | | | *
+//* |___/\__\__,_|_|   \__|___/   \_/\_/ |_|\__|_| |_| *
+//*                                                    *
+//===----------------------------------------------------------------------===//
+// Distributed under the MIT License.
+// See https://github.com/paulhuggett/uri/blob/main/LICENSE for information.
+// SPDX-License-Identifier: MIT
+//===----------------------------------------------------------------------===//
+#ifndef URI_STARTS_WITH_HPP
+#define URI_STARTS_WITH_HPP
 
 #include <cstdint>
 #include <functional>
-
-#if __has_include(<version>)
 #include <version>
-#endif
 
 namespace uri {
 
@@ -48,4 +57,4 @@ inline constexpr starts_with_fn starts_with{};
 
 }  // end namespace uri
 
-#endif  // URI_PORTAB_HPP
+#endif  // URI_STARTS_WITH_HPP
