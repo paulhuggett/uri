@@ -15,6 +15,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <ranges>
 #include <version>
 
 namespace uri {

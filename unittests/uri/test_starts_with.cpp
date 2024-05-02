@@ -10,18 +10,21 @@
 // See https://github.com/paulhuggett/uri/blob/main/LICENSE for information.
 // SPDX-License-Identifier: MIT
 //===----------------------------------------------------------------------===//
-#include "uri/starts_with.hpp"
-
-#include <array>
-#include <ranges>
-
 #include <gtest/gtest.h>
 
+#include <array>
+
+#include "uri/starts_with.hpp"
+
 using namespace std::string_view_literals;
+
+namespace {
 
 constexpr auto ascii_upper (char8_t const c) {
   return u8'a' <= c && c <= u8'z' ? static_cast<char8_t>(c + u8'A' - u8'a') : c;
 }
+
+}  // end anonymous namespace
 
 static_assert (uri::starts_with ("const_cast", "const"sv));
 static_assert (uri::starts_with ("constexpr", "const"sv));
