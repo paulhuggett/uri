@@ -98,13 +98,9 @@ jobs:
 
       - name: Install Dependencies (LLVM)
         if: matrix.llvm_install != ''
-        run: |
-          wget https://apt.llvm.org/llvm.sh
-          # Force --yes to the end of the add-apt-repository command to
-          # prevent the llvm.sh script hanging.
-          sed -ie "/^add-apt-repository/ s/$/ --yes/" llvm.sh
-          chmod +x llvm.sh
-          sudo ./llvm.sh ${{matrix.llvm_install}}
+        uses: paulhuggett/install-llvm@ad897b4b1cf03f54c1218ec6d97a23ff4b10b870 # v1.0
+        with:
+          version: ${{matrix.llvm_install}}
 
       - name: Select Xcode (macOS)
         if: matrix.xcode_version != ''
@@ -114,7 +110,7 @@ jobs:
       - name: Create Build Environment
         run: cmake -E make_directory ${{ github.workspace }}/build
 
-      - name: Configure CMake
+      - name: CMake Configure
         shell: bash
         run: |
           cmake -S "$GITHUB_WORKSPACE"                       \
