@@ -30,7 +30,7 @@ jobs:
           sudo apt-get install -y cmake
 
       - name: Install Dependencies (LLVM)
-        uses: paulhuggett/install-llvm@cf3daa3e383020edd7db6a804b9b25335804ffbe # v0.1.1
+        uses: KyleMayes/install-llvm-action@8b37482c5a2997a3ab5dbf6561f8109e2eaa7d3b # v2.0.2
         with:
           version: ${{ env.CLANG_VERSION }}
 
