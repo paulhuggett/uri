@@ -97,14 +97,9 @@ jobs:
           sudo apt-get install -y ${{ matrix.apt_install }}
 
       - name: Install Dependencies (LLVM)
-        if: matrix.llvm_install != ''
-        run: |
-          wget https://apt.llvm.org/llvm.sh
-          # Force --yes to the end of the add-apt-repository command to
-          # prevent the llvm.sh script hanging.
-          sed -ie "/^add-apt-repository/ s/$/ --yes/" llvm.sh
-          chmod +x llvm.sh
-          sudo ./llvm.sh ${{matrix.llvm_install}}
+        uses: paulhuggett/install-llvm
+        with:
+          version: ${{matrix.llvm_install}}
 
       - name: Select Xcode (macOS)
         if: matrix.xcode_version != ''
