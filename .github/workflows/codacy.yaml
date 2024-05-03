@@ -35,13 +35,9 @@ jobs:
           submodules: 'True'
 
       - name: Install clang
-        run: |
-          wget https://apt.llvm.org/llvm.sh
-          # Force --yes to the end of the add-apt-repository command to
-          # prevent the llvm.sh script hanging.
-          sed -ie "/^add-apt-repository/ s/$/ --yes/" llvm.sh
-          chmod +x llvm.sh
-          sudo ./llvm.sh "$CLANG_VERSION" all
+        uses: paulhuggett/install-llvm@cf3daa3e383020edd7db6a804b9b25335804ffbe # v0.1.1
+        with:
+          version: ${{ env.CLANG_VERSION }}
 
       - name: Download the codacy-clang-tidy tool
         run: |

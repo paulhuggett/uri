@@ -98,7 +98,7 @@ jobs:
 
       - name: Install Dependencies (LLVM)
         if: matrix.llvm_install != ''
-        uses: paulhuggett/install-llvm@v0.1.1
+        uses: paulhuggett/install-llvm@cf3daa3e383020edd7db6a804b9b25335804ffbe # v0.1.1
         with:
           version: ${{matrix.llvm_install}}
 
