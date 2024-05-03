@@ -97,7 +97,7 @@ jobs:
           sudo apt-get install -y ${{ matrix.apt_install }}
 
       - name: Install Dependencies (LLVM)
-        uses: paulhuggett/install-llvm
+        uses: paulhuggett/install-llvm@head
         with:
           version: ${{matrix.llvm_install}}
 
