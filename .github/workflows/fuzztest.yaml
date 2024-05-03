@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-22.04
 
     env:
-      BUILD_DIR: build_fuzztest
+      BUILD_DIR: ./build_fuzztest
       CLANG_VERSION: 16
 
     steps:
