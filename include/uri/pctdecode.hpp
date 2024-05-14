@@ -323,16 +323,14 @@ inline constexpr bool has_begin_end_v = decltype (has_begin_end<T> (0))::value;
 template <typename Iterator>
 class pctdecoder {
 public:
-  template <typename Container,
-            typename = std::enable_if_t<
-              details::has_begin_end_v<Container> &&
-              (std::is_same_v<Iterator, typename Container::iterator> ||
-               std::is_same_v<Iterator, typename Container::const_iterator>)>>
-  explicit constexpr pctdecoder (Container const& c) noexcept
-      : begin_{pctdecode_begin (c)}, end_{pctdecode_end (c)} {}
+  template <typename Container>
+    requires details::has_begin_end_v<Container> && (std::is_same_v<Iterator, typename Container::iterator> ||
+                                                     std::is_same_v<Iterator, typename Container::const_iterator>)
+  explicit constexpr pctdecoder (Container const& c) noexcept : begin_{pctdecode_begin (c)}, end_{pctdecode_end (c)} {}
   constexpr pctdecoder (Iterator begin, Iterator end) noexcept
       : begin_{pctdecode_iterator (begin, end)},
         end_{pctdecode_iterator (end, end)} {}
+
   constexpr auto begin () const { return begin_; }
   constexpr auto end () const { return end_; }
 

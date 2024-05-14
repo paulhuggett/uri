@@ -108,31 +108,24 @@ public:
 
   [[nodiscard]] bool done () const;
 
-  template <typename MatchFunction, typename AcceptFunction,
-            typename = std::enable_if_t<
-              std::is_invocable_v<MatchFunction, rule&&> &&
-              std::is_invocable_v<AcceptFunction, std::string_view>>>
+  template <typename MatchFunction, typename AcceptFunction>
+    requires std::is_invocable_v<MatchFunction, rule&&> && std::is_invocable_v<AcceptFunction, std::string_view>
   [[nodiscard]] rule concat (MatchFunction match, AcceptFunction accept) const {
     return concat_impl (match, accept, false);
   }
 
-  template <
-    typename MatchFunction,
-    typename = std::enable_if_t<std::is_invocable_v<MatchFunction, rule&&>>>
+  template <typename MatchFunction>
+    requires std::is_invocable_v<MatchFunction, rule&&>
   [[nodiscard]] rule concat (MatchFunction match) const {
     return concat_impl (match, &rule::accept_nop, false);
   }
 
-  template <typename MatchFunction, typename AcceptFunction,
-            typename = std::enable_if_t<
-              std::is_invocable_v<MatchFunction, rule&&> &&
-              std::is_invocable_v<AcceptFunction, std::string_view>>>
-  [[nodiscard]] rule optional (MatchFunction match,
-                               AcceptFunction accept) const;
+  template <typename MatchFunction, typename AcceptFunction>
+    requires std::is_invocable_v<MatchFunction, rule&&> && std::is_invocable_v<AcceptFunction, std::string_view>
+  [[nodiscard]] rule optional (MatchFunction match, AcceptFunction accept) const;
 
-  template <
-    typename MatchFunction,
-    typename = std::enable_if_t<std::is_invocable_v<MatchFunction, rule&&>>>
+  template <typename MatchFunction>
+    requires std::is_invocable_v<MatchFunction, rule&&>
   [[nodiscard]] rule optional (MatchFunction match) const;
 
   // Variable Repetition:  *Rule
@@ -148,15 +141,15 @@ public:
   // Default values are 0 and infinity so that *<element> allows any number,
   // including zero; 1*<element> requires at least one; 3*3<element> allows
   // exactly 3 and 1*2<element> allows one or two.
-  template <
-    typename MatchFunction,
-    typename = std::enable_if_t<std::is_invocable_v<MatchFunction, rule&&>>>
-  [[nodiscard]] rule star (
-    MatchFunction match, unsigned min = 0,
-    unsigned max = std::numeric_limits<unsigned>::max ()) const;
+  template <typename MatchFunction>
+    requires std::is_invocable_v<MatchFunction, rule&&>
+  [[nodiscard]] rule star (MatchFunction match, unsigned min = 0,
+                           unsigned max = std::numeric_limits<unsigned>::max ()) const;
 
   [[nodiscard]] static rule alternative () { return {}; }
+
   template <typename MatchFunction, typename... Rest>
+    requires std::is_invocable_v<MatchFunction, rule&&>
   [[nodiscard]] rule alternative (MatchFunction match, Rest&&... rest) const;
 
   [[nodiscard]] constexpr std::optional<std::string_view> tail () const {
@@ -213,9 +206,9 @@ private:
 
 // star
 // ~~~~
-template <typename MatchFunction, typename>
-rule rule::star (MatchFunction const match, unsigned const min,
-                 unsigned const max) const {
+template <typename MatchFunction>
+  requires std::is_invocable_v<MatchFunction, rule&&>
+rule rule::star (MatchFunction const match, unsigned const min, unsigned const max) const {
   if (!tail_) {
     return *this;
   }
@@ -250,6 +243,7 @@ rule rule::star (MatchFunction const match, unsigned const min,
 // alternative
 // ~~~~~~~~~~~
 template <typename MatchFunction, typename... Rest>
+  requires std::is_invocable_v<MatchFunction, rule&&>
 rule rule::alternative (MatchFunction match, Rest&&... rest) const {
   if (!tail_) {
     // If matching has already failed, then pass that condition down the chain.
@@ -276,7 +270,8 @@ constexpr bool rule::is_nop (Function f) const noexcept {
 
 // optional
 // ~~~~~~~~
-template <typename MatchFunction, typename AcceptFunction, typename>
+template <typename MatchFunction, typename AcceptFunction>
+  requires std::is_invocable_v<MatchFunction, rule&&> && std::is_invocable_v<AcceptFunction, std::string_view>
 rule rule::optional (MatchFunction match, AcceptFunction accept) const {
   if (!tail_) {
     return *this;  // If matching previously failed, yield failure.
@@ -288,7 +283,8 @@ rule rule::optional (MatchFunction match, AcceptFunction accept) const {
   return join_rule (res);
 }
 
-template <typename MatchFunction, typename>
+template <typename MatchFunction>
+  requires std::is_invocable_v<MatchFunction, rule&&>
 rule rule::optional (MatchFunction match) const {
   return this->optional (match, &rule::accept_nop);
 }
