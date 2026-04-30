@@ -28,7 +28,7 @@ jobs:
   msvc-analyze:
     name: MSVC Analyze
 
-    runs-on: windows-2019
+    runs-on: windows-latest
 
     permissions:
       contents: read # for actions/checkout to fetch code
