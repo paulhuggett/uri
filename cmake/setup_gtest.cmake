@@ -14,32 +14,31 @@ include (CheckCXXCompilerFlag)
 
 # Configure the Google Test targets for our build.
 function (setup_gtest)
-  if (EXISTS "${URI_ROOT}/googletest/CMakeLists.txt")
-    # Tell gtest to link against the "Multi-threaded Debug DLL runtime library"
-    # on Windows.
-    set (gtest_force_shared_crt On CACHE BOOL "Always use msvcrt.dll")
-    # We don't want to install either gtest or gmock.
-    set (INSTALL_GTEST Off CACHE BOOL "Disable gtest install")
-    set (INSTALL_GMOCK Off CACHE BOOL "Disable gmock install")
-    add_subdirectory ("${URI_ROOT}/googletest")
+  # Tell gtest to link against the "Multi-threaded Debug DLL runtime library"
+  # on Windows.
+  set (gtest_force_shared_crt On CACHE BOOL "Always use msvcrt.dll")
+  # We don't want to install either gtest or gmock.
+  set (INSTALL_GTEST Off CACHE BOOL "Disable gtest install")
+  set (INSTALL_GMOCK Off CACHE BOOL "Disable gmock install")
+  FetchContent_MakeAvailable(googletest)
+  include(GoogleTest)
 
-    set (gclangopts )
-    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang$")
-      check_cxx_compiler_flag (-Wno-implicit-int-float-conversion CLANG_W_NO_IMPLICIT_INT_FLOAT_CONVERSION)
-      list (APPEND gclangopts $<$<BOOL:${CLANG_W_NO_IMPLICIT_INT_FLOAT_CONVERSION}>:-Wno-implicit-int-float-conversion>)
-    endif ()
-
-    set (is_clang $<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>)
-
-    # Adjust compiler options for the gtest/gmock.
-    foreach (target gtest gmock gmock_main gtest_main)
-      target_compile_features (${target} PUBLIC $<IF:$<BOOL:${URI_CXX17}>,cxx_std_17,cxx_std_20>)
-      target_compile_definitions (
-        ${target} PUBLIC GTEST_REMOVE_LEGACY_TEST_CASEAPI_=1
-      )
-      target_compile_options (${target} PRIVATE $<${is_clang}>:${gclangopts}>)
-      target_link_options (${target} PRIVATE $<${is_clang}>:${gclangopts}>)
-    endforeach ()
+  set (gclangopts )
+  if (CMAKE_CXX_COMPILER_ID MATCHES "Clang$")
+    check_cxx_compiler_flag (-Wno-implicit-int-float-conversion CLANG_W_NO_IMPLICIT_INT_FLOAT_CONVERSION)
+    list (APPEND gclangopts $<$<BOOL:${CLANG_W_NO_IMPLICIT_INT_FLOAT_CONVERSION}>:-Wno-implicit-int-float-conversion>)
   endif ()
+
+  set (is_clang $<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>)
+
+  # Adjust compiler options for the gtest/gmock.
+  foreach (target gtest gmock gmock_main gtest_main)
+    target_compile_features (${target} PUBLIC $<IF:$<BOOL:${URI_CXX17}>,cxx_std_17,cxx_std_20>)
+    target_compile_definitions (
+      ${target} PUBLIC GTEST_REMOVE_LEGACY_TEST_CASEAPI_=1
+    )
+    target_compile_options (${target} PRIVATE $<${is_clang}>:${gclangopts}>)
+    target_link_options (${target} PRIVATE $<${is_clang}>:${gclangopts}>)
+  endforeach ()
 
 endfunction (setup_gtest)

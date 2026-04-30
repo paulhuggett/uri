@@ -23,8 +23,8 @@ if (TARGET gtest)
     COMMAND "$<TARGET_FILE:${URI_TEST_TARGET}>"
             "--gtest_output=xml:${URI_OUT_XML}"
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-    COMMENT "Running unit tests" DEPENDS ${URI_TEST_TARGET}
-    BYPRODUCTS "${CMAKE_BINARY_DIR}/${URI_OUT_XML}"
+    COMMENT "Running unit tests"
+    BYPRODUCTS "${URI_OUT_XML}"
     VERBATIM
   )
 endif (TARGET gtest)
