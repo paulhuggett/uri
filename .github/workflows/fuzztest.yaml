@@ -9,11 +9,11 @@ permissions:
 jobs:
   fuzztest:
     name: Fuzz Test
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     env:
       BUILD_DIR: ./build_fuzztest
-      CLANG_VERSION: 16
+      CLANG_VERSION: 18
 
     steps:
       - name: Harden Runner
