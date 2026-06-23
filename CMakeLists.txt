@@ -37,7 +37,7 @@ set (URI_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
 
 if (URI_FUZZTEST)
   set (FUZZTEST_FUZZING_MODE On)
-  set (FUZZTEST_REPO_BRANCH "HEAD" CACHE STRING "FuzzTest repository branch.")
+  set (FUZZTEST_REPO_BRANCH "release_2026-02-19" CACHE STRING "FuzzTest repository branch.")
   message ("Building fuzztest at tag " ${FUZZTEST_REPO_BRANCH})
   FetchContent_Declare (
     fuzztest
